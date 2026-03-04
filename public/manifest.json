@@ -1,0 +1,23 @@
+{
+  "name": "לוח זמנים חכם",
+  "short_name": "לוח זמנים",
+  "description": "לוח זמנים חכם ללמידה",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5fa",
+  "theme_color": "#6c63ff",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
