@@ -40,7 +40,11 @@ export default function Today({ schedule, sessions, todayStr, dailyHours, onUpda
     }
     onUpdate()
   }
-
+const urgentItems = schedule.filter(item =>
+    item.daysLeft <= 3 &&
+    item.remaining > 2 &&
+    (item.event_type === 'בגרות' || item.event_type === 'מתכונת')
+  )
   return (
     <div>
       {pendingItem && (
@@ -71,6 +75,28 @@ export default function Today({ schedule, sessions, todayStr, dailyHours, onUpda
               <button className="btn" style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)' }} onClick={() => { setPendingItem(null); setActualHours('') }}>ביטול</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {urgentItems.length > 0 && (
+        <div style={{
+          background: 'rgba(255,71,87,0.1)',
+          border: '1px solid rgba(255,71,87,0.4)',
+          borderRadius: 'var(--radius)',
+          padding: '14px 18px',
+          marginBottom: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6
+        }}>
+          <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: 15 }}>
+            אזהרה - אירועים קרובים
+          </div>
+          {urgentItems.map(item => (
+            <div key={item.id} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+              {item.name} ({item.event_type}) - עוד {item.daysLeft} ימים, נשארו {item.remaining} שעות
+            </div>
+          ))}
         </div>
       )}
 
