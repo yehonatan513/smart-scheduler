@@ -1,6 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
 
 :root {
+  --bg: #f5f5fa;
+  --surface: #ffffff;
+  --surface2: #f0f0f7;
+  --border: #e0e0ee;
+  --accent: #6c63ff;
+  --accent2: #ff6584;
+  --accent3: #20c45a;
+  --text: #1a1a2e;
+  --text-dim: #6060a0;
+  --text-muted: #a0a0c0;
+  --danger: #ff4757;
+  --warn: #ffa502;
+  --radius: 14px;
+}
+
+:root.dark {
   --bg: #0a0a0f;
   --surface: #12121a;
   --surface2: #1a1a26;
@@ -10,6 +26,7 @@
   --accent3: #43e97b;
   --text: #e8e8f0;
   --text-dim: #7070a0;
+  --text-muted: #3a3a5c;
   --danger: #ff4757;
   --warn: #ffa502;
   --radius: 14px;

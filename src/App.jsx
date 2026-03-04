@@ -28,6 +28,16 @@ export default function App() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode')
+    if (saved !== null) return saved === 'true'
+    return false
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('darkMode', darkMode)
+  }, [darkMode])
 
   useEffect(() => { fetchAll() }, [])
 
@@ -64,6 +74,15 @@ export default function App() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">לוח זמנים חכם</div>
         <div className="sidebar-date">יום {dayName}, {dateStr}</div>
+        <button onClick={() => setDarkMode(!darkMode)} style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+          border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface2)',
+          color: 'var(--text-dim)', fontFamily: 'Heebo, sans-serif', fontSize: 14,
+          cursor: 'pointer', marginBottom: 16, width: '100%'
+        }}>
+          <span>{darkMode ? '☀️' : '🌙'}</span>
+          <span>{darkMode ? 'מצב בהיר' : 'מצב כהה'}</span>
+        </button>
         <nav className="sidebar-nav">
           {NAV_ITEMS.map(item => (
             <button
