@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import GoogleCalendar from './GoogleCalendar'
 
-export default function Subjects({ subjects, sessions, onUpdate }) {
+export default function Subjects({ subjects, sessions, onUpdate, user }) {
   const [name, setName] = useState('')
   const [examDate, setExamDate] = useState('')
   const [hours, setHours] = useState('')
@@ -17,7 +17,7 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
 
   async function addSubject() {
     if (!name || !examDate || !hours) return alert('נא למלא את כל השדות')
-    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType, notes })
+    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType, notes, user_id: user.id })
     setName(''); setExamDate(''); setHours(''); setEventType('מבחן'); setNotes('')
     onUpdate()
   }

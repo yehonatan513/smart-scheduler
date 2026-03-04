@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 
-export default function Today({ schedule, sessions, todayStr, dailyHours, onUpdate }) {
+export default function Today({ schedule, sessions, todayStr, dailyHours, onUpdate, user }) {
   const [pendingItem, setPendingItem] = useState(null)
   const [actualHours, setActualHours] = useState('')
   const isSaturday = new Date().getDay() === 6
@@ -26,7 +26,7 @@ export default function Today({ schedule, sessions, todayStr, dailyHours, onUpda
     if (existing) {
       await supabase.from('sessions').update({ completed: true, hours }).eq('id', existing.id)
     } else {
-      await supabase.from('sessions').insert({ subject_id: item.id, date: todayStr, hours, completed: true })
+      await supabase.from('sessions').insert({ subject_id: item.id, date: todayStr, hours, completed: true, user_id: user.id })
     }
     setPendingItem(null)
     setActualHours('')

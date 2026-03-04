@@ -16,7 +16,7 @@ const TYPE_COLOR = {
 const EXAM_TYPES = ['מבחן', 'מתכונת', 'בגרות']
 const EVENT_TYPES = ['אירוע', 'יום הולדת']
 
-export default function Calendar({ subjects, sessions, onUpdate }) {
+export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -40,7 +40,7 @@ export default function Calendar({ subjects, sessions, onUpdate }) {
 
   async function loadEvents() {
     if (eventsLoaded) return
-    const { data } = await supabase.from('events').select('*')
+    const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
     setEvents(data || [])
     setEventsLoaded(true)
   }
@@ -125,7 +125,7 @@ export default function Calendar({ subjects, sessions, onUpdate }) {
         await supabase.from('events').update({
           title: formTitle, date: formDate, type: addType, notes: formNotes, recurring: formRecurring
         }).eq('id', editItem.id)
-        const { data } = await supabase.from('events').select('*')
+        const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
         setEvents(data || [])
       }
     } else {
@@ -133,14 +133,14 @@ export default function Calendar({ subjects, sessions, onUpdate }) {
         if (!formHours) return alert('נא למלא שעות למידה')
         await supabase.from('subjects').insert({
           name: formTitle, exam_date: formDate,
-          total_hours: parseFloat(formHours), event_type: addType, notes: formNotes
+          total_hours: parseFloat(formHours), event_type: addType, notes: formNotes, user_id: user.id
         })
       } else {
         await supabase.from('events').insert({
           title: formTitle, date: formDate, type: addType,
-          notes: formNotes, recurring: addType === 'יום הולדת' ? true : formRecurring
+          notes: formNotes, recurring: addType === 'יום הולדת' ? true : formRecurring, user_id: user.id
         })
-        const { data } = await supabase.from('events').select('*')
+        const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
         setEvents(data || [])
       }
     }
@@ -156,7 +156,7 @@ export default function Calendar({ subjects, sessions, onUpdate }) {
       await supabase.from('subjects').delete().eq('id', editItem.id)
     } else {
       await supabase.from('events').delete().eq('id', editItem.id)
-      const { data } = await supabase.from('events').select('*')
+      const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
       setEvents(data || [])
     }
     setShowAddModal(false)

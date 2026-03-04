@@ -1,3 +1,4 @@
+import AuthPage from './components/Auth'
 import WeeklySummary from './components/WeeklySummary'
 import Calendar from './components/Calendar'
 import { useState, useEffect } from 'react'
@@ -24,6 +25,19 @@ const NAV_ITEMS = [
 
 export default function App() {
   const [tab, setTab] = useState('today')
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
   const [subjects, setSubjects] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,13 +53,13 @@ export default function App() {
     localStorage.setItem('darkMode', darkMode)
   }, [darkMode])
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { if (user) fetchAll() }, [user])
 
   async function fetchAll() {
     setLoading(true)
     const [{ data: subs }, { data: sess }] = await Promise.all([
-      supabase.from('subjects').select('*').order('exam_date'),
-      supabase.from('sessions').select('*')
+      supabase.from('subjects').select('*').order('exam_date').eq('user_id', user.id),
+      supabase.from('sessions').select('*').eq('user_id', user.id)
     ])
     setSubjects(subs || [])
     setSessions(sess || [])
@@ -62,7 +76,8 @@ export default function App() {
     setTab(id)
     setSidebarOpen(false)
   }
-
+  if (authLoading) return <div className="loading" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>טוען...</div>
+  if (!user) return <AuthPage />
   return (
     <div className="layout">
       {/* Overlay למובייל */}
@@ -104,12 +119,12 @@ export default function App() {
             <div className="loading">טוען...</div>
           ) : (
             <>
-              {tab === 'today' && <Today schedule={schedule} sessions={sessions} todayStr={todayStr} dailyHours={getTodayHours()} onUpdate={fetchAll} />}
-              {tab === 'subjects' && <Subjects subjects={subjects} sessions={sessions} onUpdate={fetchAll} />}
+              {tab === 'today' && <Today schedule={schedule} sessions={sessions} todayStr={todayStr} dailyHours={getTodayHours()} onUpdate={fetchAll} user={user} />}
+              {tab === 'subjects' && <Subjects subjects={subjects} sessions={sessions} onUpdate={fetchAll} user={user} />}
               {tab === 'progress' && <Progress subjects={subjects} sessions={sessions} />}
               {tab === 'stats' && <Stats sessions={sessions} subjects={subjects} />}
               {tab === 'weekly' && <WeeklySummary sessions={sessions} subjects={subjects} />}
-              {tab === 'calendar' && <Calendar subjects={subjects} sessions={sessions} onUpdate={fetchAll} />}
+              {tab === 'calendar' && <Calendar subjects={subjects} sessions={sessions} onUpdate={fetchAll} user={user} />}
               {tab === 'history' && <History sessions={sessions} subjects={subjects} onUpdate={fetchAll} />}
               {tab === 'settings' && <Notifications darkMode={darkMode} setDarkMode={setDarkMode} />}
             </>
