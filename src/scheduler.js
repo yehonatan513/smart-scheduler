@@ -1,11 +1,11 @@
 const DAILY_HOURS = {
-  0: 5.5, // ראשון
-  1: 3.5, // שני
-  2: 5.5, // שלישי
-  3: 3.5, // רביעי
-  4: 5.5, // חמישי
-  5: 2.0, // שישי
-  6: 0.0, // שבת
+  0: 5.5,
+  1: 3.5,
+  2: 5.5,
+  3: 3.5,
+  4: 5.5,
+  5: 2.0,
+  6: 0.0,
 }
 
 const TYPE_MULTIPLIER = {
@@ -25,7 +25,10 @@ export function getTodayHours() {
   return DAILY_HOURS[new Date().getDay()] ?? 0
 }
 
-export function calculateSchedule(subjects, sessions) {
+export function calculateSchedule(subjects, sessions, settings = {}) {
+  const maxSubjects = settings.max_subjects_per_day ?? 3
+  const minHours = settings.min_hours_per_subject ?? 1
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const dailyHours = getTodayHours()
@@ -43,24 +46,38 @@ export function calculateSchedule(subjects, sessions) {
       const remaining = Math.max(0, s.total_hours - doneHours)
       const typeMultiplier = TYPE_MULTIPLIER[s.event_type] ?? 1
       const proximityMultiplier = getProximityMultiplier(daysLeft)
-      return { ...s, daysLeft, doneHours, remaining, typeMultiplier, proximityMultiplier }
+      const urgency = (remaining / daysLeft) * typeMultiplier * proximityMultiplier
+      return { ...s, daysLeft, doneHours, remaining, urgency }
     })
     .filter(s => s.remaining > 0 && new Date(s.exam_date) >= today)
+    .sort((a, b) => b.urgency - a.urgency)
+    .slice(0, maxSubjects)
 
   if (!active.length) return []
 
-  const totalUrgency = active.reduce((sum, s) =>
-    sum + (s.remaining / s.daysLeft) * s.typeMultiplier * s.proximityMultiplier, 0)
-
+  const totalUrgency = active.reduce((sum, s) => sum + s.urgency, 0)
   if (totalUrgency === 0) return []
 
-  return active.map(s => {
-    const urgency = (s.remaining / s.daysLeft) * s.typeMultiplier * s.proximityMultiplier
-    const proportion = urgency / totalUrgency
-    const allocated = Math.max(0.5, Math.min(
-      Math.round(dailyHours * proportion * 2) / 2,
-      s.remaining
-    ))
-    return { ...s, allocated }
+  let remaining = dailyHours
+  const result = []
+
+  active.forEach((s, i) => {
+    const isLast = i === active.length - 1
+    if (isLast) {
+      const allocated = Math.min(Math.round(remaining * 2) / 2, s.remaining)
+      if (allocated >= minHours) result.push({ ...s, allocated })
+    } else {
+      const proportion = s.urgency / totalUrgency
+      const raw = dailyHours * proportion
+      const allocated = Math.min(
+        Math.max(minHours, Math.round(raw * 2) / 2),
+        s.remaining,
+        remaining - minHours * (active.length - i - 1)
+      )
+      result.push({ ...s, allocated })
+      remaining -= allocated
+    }
   })
+
+  return result.filter(s => s.allocated >= minHours)
 }

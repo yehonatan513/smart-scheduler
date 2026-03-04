@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../supabaseClient'
 
-export default function Notifications({ darkMode, setDarkMode }) {
-  const [permission, setPermission] = useState(Notification.permission)
+export default function Notifications({ darkMode, setDarkMode, user, settings, onSettingsUpdate }) {  const [permission, setPermission] = useState(Notification.permission)
   const [time, setTime] = useState(localStorage.getItem('notif_time') || '08:00')
   const [enabled, setEnabled] = useState(localStorage.getItem('notif_enabled') === 'true')
   const [saved, setSaved] = useState(false)
@@ -45,6 +45,38 @@ export default function Notifications({ darkMode, setDarkMode }) {
         }}>
           <span>{darkMode ? '☀️' : '🌙'}</span>
           <span>{darkMode ? 'עבור למצב בהיר' : 'עבור למצב כהה'}</span>
+        </button>
+      </div>
+      <div className="form-card">
+        <div className="form-title">הגדרות לוח זמנים</div>
+        <div className="form-group" style={{ marginBottom: 12 }}>
+          <label>מספר מקצועות מקסימלי ביום</label>
+          <input
+            type="number" min="1" max="6"
+            defaultValue={settings?.max_subjects_per_day ?? 3}
+            id="maxSubjects"
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 16 }}>
+          <label>מינימום שעות למקצוע</label>
+          <input
+            type="number" min="0.5" max="4" step="0.5"
+            defaultValue={settings?.min_hours_per_subject ?? 1}
+            id="minHours"
+          />
+        </div>
+        <button className="btn btn-primary" onClick={async () => {
+          const max = parseInt(document.getElementById('maxSubjects').value)
+          const min = parseFloat(document.getElementById('minHours').value)
+          const existing = settings?.id
+          if (existing) {
+            await supabase.from('user_settings').update({ max_subjects_per_day: max, min_hours_per_subject: min }).eq('id', existing)
+          } else {
+            await supabase.from('user_settings').insert({ user_id: user.id, max_subjects_per_day: max, min_hours_per_subject: min })
+          }
+          onSettingsUpdate()
+        }}>
+          שמור הגדרות
         </button>
       </div>
       <div className="form-card">

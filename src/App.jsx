@@ -40,6 +40,7 @@ export default function App() {
   }, [])
   const [subjects, setSubjects] = useState([])
   const [sessions, setSessions] = useState([])
+  const [settings, setSettings] = useState({ max_subjects_per_day: 3, min_hours_per_subject: 1 })
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() => {
@@ -57,16 +58,18 @@ export default function App() {
 
   async function fetchAll() {
     setLoading(true)
-    const [{ data: subs }, { data: sess }] = await Promise.all([
+    const [{ data: subs }, { data: sess }, { data: sets }] = await Promise.all([
       supabase.from('subjects').select('*').order('exam_date').eq('user_id', user.id),
-      supabase.from('sessions').select('*').eq('user_id', user.id)
+      supabase.from('sessions').select('*').eq('user_id', user.id),
+      supabase.from('user_settings').select('*').eq('user_id', user.id).single()
     ])
     setSubjects(subs || [])
     setSessions(sess || [])
+    if (sets) setSettings(sets)
     setLoading(false)
   }
 
-  const schedule = calculateSchedule(subjects, sessions)
+  const schedule = calculateSchedule(subjects, sessions, settings)
   const todayStr = new Date().toISOString().split('T')[0]
   const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
   const dayName = DAYS[new Date().getDay()]
@@ -126,7 +129,7 @@ export default function App() {
               {tab === 'weekly' && <WeeklySummary sessions={sessions} subjects={subjects} />}
               {tab === 'calendar' && <Calendar subjects={subjects} sessions={sessions} onUpdate={fetchAll} user={user} />}
               {tab === 'history' && <History sessions={sessions} subjects={subjects} onUpdate={fetchAll} />}
-              {tab === 'settings' && <Notifications darkMode={darkMode} setDarkMode={setDarkMode} />}
+              {tab === 'settings' && <Notifications darkMode={darkMode} setDarkMode={setDarkMode} user={user} settings={settings} onSettingsUpdate={fetchAll} />}
             </>
           )}
         </div>
