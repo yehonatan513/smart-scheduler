@@ -1,3 +1,4 @@
+import History from './components/History'
 import Notifications from './components/Notifications'
 import Stats from './components/Stats'
 import { useState, useEffect } from 'react'
@@ -43,7 +44,7 @@ export default function App() {
       </header>
 
       <div className="tabs">
-        {[['today','היום'],['subjects','מקצועות'],['progress','התקדמות'],['stats','סטטיסטיקות'],['settings','הגדרות']].map(([id, label]) => (
+        {[['today','היום'],['subjects','מקצועות'],['progress','התקדמות'],['stats','סטטיסטיקות'],['history','היסטוריה'],['settings','הגדרות']].map(([id, label]) => (
           <button key={id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}>
             {label}
           </button>
@@ -58,6 +59,7 @@ export default function App() {
           {tab === 'subjects' && <Subjects subjects={subjects} sessions={sessions} onUpdate={fetchAll} />}
           {tab === 'progress' && <Progress subjects={subjects} sessions={sessions} />}
           {tab === 'stats' && <Stats sessions={sessions} subjects={subjects} />}
+          {tab === 'history' && <History sessions={sessions} subjects={subjects} onUpdate={fetchAll} />}
           {tab === 'settings' && <Notifications />}
         </>
       )}
