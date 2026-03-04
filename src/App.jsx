@@ -99,7 +99,7 @@ export default function App() {
               {tab === 'progress' && <Progress subjects={subjects} sessions={sessions} />}
               {tab === 'stats' && <Stats sessions={sessions} subjects={subjects} />}
               {tab === 'weekly' && <WeeklySummary sessions={sessions} subjects={subjects} />}
-              {tab === 'calendar' && <Calendar subjects={subjects} />}
+              {tab === 'calendar' && <Calendar subjects={subjects} sessions={sessions} onUpdate={fetchAll} />}
               {tab === 'history' && <History sessions={sessions} subjects={subjects} onUpdate={fetchAll} />}
               {tab === 'settings' && <Notifications />}
             </>
