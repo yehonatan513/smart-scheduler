@@ -1,3 +1,4 @@
+import WeeklySummary from './components/WeeklySummary'
 import Calendar from './components/Calendar'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { id: 'subjects', label: 'מקצועות', icon: '📚' },
   { id: 'progress', label: 'התקדמות', icon: '📈' },
   { id: 'stats', label: 'סטטיסטיקות', icon: '📊' },
+  { id: 'weekly', label: 'סיכום שבועי', icon: '📆' },
   { id: 'calendar', label: 'לוח שנה', icon: '📅' },
   { id: 'history', label: 'היסטוריה', icon: '🕐' },
   { id: 'settings', label: 'הגדרות', icon: '⚙️' },
@@ -96,6 +98,7 @@ export default function App() {
               {tab === 'subjects' && <Subjects subjects={subjects} sessions={sessions} onUpdate={fetchAll} />}
               {tab === 'progress' && <Progress subjects={subjects} sessions={sessions} />}
               {tab === 'stats' && <Stats sessions={sessions} subjects={subjects} />}
+              {tab === 'weekly' && <WeeklySummary sessions={sessions} subjects={subjects} />}
               {tab === 'calendar' && <Calendar subjects={subjects} />}
               {tab === 'history' && <History sessions={sessions} subjects={subjects} onUpdate={fetchAll} />}
               {tab === 'settings' && <Notifications />}
