@@ -14,6 +14,13 @@ const TYPE_MULTIPLIER = {
   'מבחן': 1,
 }
 
+function getProximityMultiplier(daysLeft) {
+  if (daysLeft <= 1) return 5
+  if (daysLeft <= 2) return 3
+  if (daysLeft <= 3) return 2
+  return 1
+}
+
 export function getTodayHours() {
   return DAILY_HOURS[new Date().getDay()] ?? 0
 }
@@ -34,18 +41,21 @@ export function calculateSchedule(subjects, sessions) {
         .filter(se => se.subject_id === s.id && se.completed)
         .reduce((sum, se) => sum + se.hours, 0)
       const remaining = Math.max(0, s.total_hours - doneHours)
-      const multiplier = TYPE_MULTIPLIER[s.event_type] ?? 1
-      return { ...s, daysLeft, doneHours, remaining, multiplier }
+      const typeMultiplier = TYPE_MULTIPLIER[s.event_type] ?? 1
+      const proximityMultiplier = getProximityMultiplier(daysLeft)
+      return { ...s, daysLeft, doneHours, remaining, typeMultiplier, proximityMultiplier }
     })
     .filter(s => s.remaining > 0 && new Date(s.exam_date) >= today)
 
   if (!active.length) return []
 
-  const totalUrgency = active.reduce((sum, s) => sum + (s.remaining / s.daysLeft) * s.multiplier, 0)
+  const totalUrgency = active.reduce((sum, s) =>
+    sum + (s.remaining / s.daysLeft) * s.typeMultiplier * s.proximityMultiplier, 0)
+
   if (totalUrgency === 0) return []
 
   return active.map(s => {
-    const urgency = (s.remaining / s.daysLeft) * s.multiplier
+    const urgency = (s.remaining / s.daysLeft) * s.typeMultiplier * s.proximityMultiplier
     const proportion = urgency / totalUrgency
     const allocated = Math.max(0.5, Math.min(
       Math.round(dailyHours * proportion * 2) / 2,

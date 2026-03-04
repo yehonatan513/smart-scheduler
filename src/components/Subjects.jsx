@@ -7,16 +7,18 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
   const [examDate, setExamDate] = useState('')
   const [hours, setHours] = useState('')
   const [eventType, setEventType] = useState('מבחן')
+  const [notes, setNotes] = useState('')
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editHours, setEditHours] = useState('')
   const [editEventType, setEditEventType] = useState('מבחן')
+  const [editNotes, setEditNotes] = useState('')
 
   async function addSubject() {
     if (!name || !examDate || !hours) return alert('נא למלא את כל השדות')
-    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType })
-    setName(''); setExamDate(''); setHours(''); setEventType('מבחן')
+    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType, notes })
+    setName(''); setExamDate(''); setHours(''); setEventType('מבחן'); setNotes('')
     onUpdate()
   }
 
@@ -32,6 +34,7 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
     setEditDate(s.exam_date)
     setEditHours(s.total_hours)
     setEditEventType(s.event_type || 'מבחן')
+    setEditNotes(s.notes || '')
   }
 
   async function saveEdit() {
@@ -40,7 +43,8 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
       name: editName,
       exam_date: editDate,
       total_hours: parseFloat(editHours),
-      event_type: editEventType
+      event_type: editEventType,
+      notes: editNotes
     }).eq('id', editId)
     setEditId(null)
     onUpdate()
@@ -76,6 +80,21 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
               <option value="מתכונת">מתכונת</option>
               <option value="בגרות">בגרות</option>
             </select>
+          </div>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label>הערות</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="נושאים חשובים, מה צריך לחזור, חולשות..."
+              rows={2}
+              style={{
+                width: '100%', padding: '10px 14px', background: 'var(--surface2)',
+                border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)',
+                fontFamily: 'Heebo, sans-serif', fontSize: 14, outline: 'none',
+                resize: 'vertical'
+              }}
+            />
           </div>
         </div>
         <button className="btn btn-primary" onClick={addSubject}>הוסף מקצוע</button>
@@ -115,6 +134,20 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
                     <option value="בגרות">בגרות</option>
                   </select>
                 </div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label>הערות</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={e => setEditNotes(e.target.value)}
+                    rows={2}
+                    style={{
+                      width: '100%', padding: '10px 14px', background: 'var(--surface2)',
+                      border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)',
+                      fontFamily: 'Heebo, sans-serif', fontSize: 14, outline: 'none',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveEdit}>שמור</button>
@@ -126,7 +159,10 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
 
         return (
           <div key={s.id} className="subject-row">
-            <div className="subject-row-name">{s.name}</div>
+            <div>
+              <div className="subject-row-name">{s.name}</div>
+              {s.notes && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{s.notes.length > 60 ? s.notes.slice(0, 60) + '...' : s.notes}</div>}
+            </div>
             <div className="subject-row-meta">
               <span>{new Date(s.exam_date).toLocaleDateString('he-IL')}</span>
               <span>{daysLeft} ימים</span>

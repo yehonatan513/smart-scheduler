@@ -131,6 +131,11 @@ const urgentItems = schedule.filter(item => {
                   <span>{item.remaining} שעות נשארו</span>
                 )}
               </div>
+              {item.notes && (
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6, padding: '6px 10px', background: 'var(--surface2)', borderRadius: 6 }}>
+                  {item.notes}
+                </div>
+              )}
             </div>
             <div className="hours-pill">{item.allocated} שע'</div>
           </div>
