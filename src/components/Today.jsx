@@ -40,11 +40,12 @@ export default function Today({ schedule, sessions, todayStr, dailyHours, onUpda
     }
     onUpdate()
   }
-const urgentItems = schedule.filter(item =>
-    item.daysLeft <= 3 &&
-    item.remaining > 2 &&
-    (item.event_type === 'בגרות' || item.event_type === 'מתכונת')
-  )
+const urgentItems = schedule.filter(item => {
+    if (item.event_type === 'בגרות') return item.daysLeft <= 7 && item.remaining > 7
+    if (item.event_type === 'מתכונת') return item.daysLeft <= 3 && item.remaining > 3
+    if (item.event_type === 'מבחן') return item.daysLeft <= 1 && item.remaining > 1
+    return false
+  })
   return (
     <div>
       {pendingItem && (
