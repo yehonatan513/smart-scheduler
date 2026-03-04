@@ -6,15 +6,17 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
   const [name, setName] = useState('')
   const [examDate, setExamDate] = useState('')
   const [hours, setHours] = useState('')
+  const [eventType, setEventType] = useState('מבחן')
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editHours, setEditHours] = useState('')
+  const [editEventType, setEditEventType] = useState('מבחן')
 
   async function addSubject() {
     if (!name || !examDate || !hours) return alert('נא למלא את כל השדות')
-    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours) })
-    setName(''); setExamDate(''); setHours('')
+    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType })
+    setName(''); setExamDate(''); setHours(''); setEventType('מבחן')
     onUpdate()
   }
 
@@ -29,6 +31,7 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
     setEditName(s.name)
     setEditDate(s.exam_date)
     setEditHours(s.total_hours)
+    setEditEventType(s.event_type || 'מבחן')
   }
 
   async function saveEdit() {
@@ -36,7 +39,8 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
     await supabase.from('subjects').update({
       name: editName,
       exam_date: editDate,
-      total_hours: parseFloat(editHours)
+      total_hours: parseFloat(editHours),
+      event_type: editEventType
     }).eq('id', editId)
     setEditId(null)
     onUpdate()
@@ -60,6 +64,18 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
           <div className="form-group">
             <label>שעות למידה משוערות</label>
             <input type="number" value={hours} onChange={e => setHours(e.target.value)} placeholder="20" min="1" />
+          </div>
+          <div className="form-group">
+            <label>סוג אירוע</label>
+            <select value={eventType} onChange={e => setEventType(e.target.value)} style={{
+              width: '100%', padding: '10px 14px', background: 'var(--surface2)',
+              border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)',
+              fontFamily: 'Heebo, sans-serif', fontSize: 14, outline: 'none'
+            }}>
+              <option value="מבחן">מבחן</option>
+              <option value="מתכונת">מתכונת</option>
+              <option value="בגרות">בגרות</option>
+            </select>
           </div>
         </div>
         <button className="btn btn-primary" onClick={addSubject}>הוסף מקצוע</button>
@@ -87,6 +103,18 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
                   <label>שעות למידה</label>
                   <input type="number" value={editHours} onChange={e => setEditHours(e.target.value)} min="1" />
                 </div>
+                <div className="form-group">
+                  <label>סוג אירוע</label>
+                  <select value={editEventType} onChange={e => setEditEventType(e.target.value)} style={{
+                    width: '100%', padding: '10px 14px', background: 'var(--surface2)',
+                    border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)',
+                    fontFamily: 'Heebo, sans-serif', fontSize: 14, outline: 'none'
+                  }}>
+                    <option value="מבחן">מבחן</option>
+                    <option value="מתכונת">מתכונת</option>
+                    <option value="בגרות">בגרות</option>
+                  </select>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveEdit}>שמור</button>
@@ -103,6 +131,13 @@ export default function Subjects({ subjects, sessions, onUpdate }) {
               <span>{new Date(s.exam_date).toLocaleDateString('he-IL')}</span>
               <span>{daysLeft} ימים</span>
               <span>{Math.round(done)}/{s.total_hours} שע'</span>
+              <span style={{
+                padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                background: s.event_type === 'בגרות' ? 'rgba(255,101,132,0.15)' : s.event_type === 'מתכונת' ? 'rgba(108,99,255,0.15)' : 'rgba(112,112,160,0.15)',
+                color: s.event_type === 'בגרות' ? 'var(--accent2)' : s.event_type === 'מתכונת' ? 'var(--accent)' : 'var(--text-dim)'
+              }}>
+                {s.event_type || 'מבחן'}
+              </span>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn" style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', padding: '6px 12px', fontSize: 12, borderRadius: 6 }} onClick={() => startEdit(s)}>עריכה</button>

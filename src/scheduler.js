@@ -8,6 +8,12 @@ const DAILY_HOURS = {
   6: 0.0, // שבת
 }
 
+const TYPE_MULTIPLIER = {
+  'בגרות': 3,
+  'מתכונת': 2,
+  'מבחן': 1,
+}
+
 export function getTodayHours() {
   return DAILY_HOURS[new Date().getDay()] ?? 0
 }
@@ -28,17 +34,18 @@ export function calculateSchedule(subjects, sessions) {
         .filter(se => se.subject_id === s.id && se.completed)
         .reduce((sum, se) => sum + se.hours, 0)
       const remaining = Math.max(0, s.total_hours - doneHours)
-      return { ...s, daysLeft, doneHours, remaining }
+      const multiplier = TYPE_MULTIPLIER[s.event_type] ?? 1
+      return { ...s, daysLeft, doneHours, remaining, multiplier }
     })
     .filter(s => s.remaining > 0 && new Date(s.exam_date) >= today)
 
   if (!active.length) return []
 
-  const totalUrgency = active.reduce((sum, s) => sum + s.remaining / s.daysLeft, 0)
+  const totalUrgency = active.reduce((sum, s) => sum + (s.remaining / s.daysLeft) * s.multiplier, 0)
   if (totalUrgency === 0) return []
 
   return active.map(s => {
-    const urgency = s.remaining / s.daysLeft
+    const urgency = (s.remaining / s.daysLeft) * s.multiplier
     const proportion = urgency / totalUrgency
     const allocated = Math.max(0.5, Math.min(
       Math.round(dailyHours * proportion * 2) / 2,
