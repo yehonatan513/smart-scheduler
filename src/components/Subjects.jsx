@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
-import GoogleCalendar from './GoogleCalendar'
+
 
 export default function Subjects({ subjects, sessions, onUpdate, user }) {
   const [name, setName] = useState('')
@@ -52,7 +52,6 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
 
   return (
     <div>
-      <GoogleCalendar onUpdate={onUpdate} />
 
       <div className="form-card">
         <div className="form-title">הוסף מקצוע</div>

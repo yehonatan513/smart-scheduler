@@ -1,144 +1,146 @@
-import { useGoogleLogin } from '@react-oauth/google'
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 
-const EXAM_KEYWORDS = ['בגרות', 'מבחן', 'בחינה', 'exam', 'test']
+const EXAM_KEYWORDS = ['בגרות', 'מתכונת', 'מבחן', 'בחינה', 'exam', 'test']
+const EXAM_TYPE_MAP = { 'בגרות': 'בגרות', 'מתכונת': 'מתכונת', 'מבחן': 'מבחן', 'בחינה': 'מבחן', 'exam': 'מבחן', 'test': 'מבחן' }
 
-function isExamEvent(title) {
+function detectExamType(title) {
   const lower = title.toLowerCase()
-  return EXAM_KEYWORDS.some(kw => lower.includes(kw))
+  for (const [keyword, type] of Object.entries(EXAM_TYPE_MAP)) {
+    if (lower.includes(keyword)) return type
+  }
+  return null
 }
 
-function extractName(title) {
-  let name = title
-  EXAM_KEYWORDS.forEach(kw => {
-    name = name.replace(new RegExp(kw, 'gi'), '')
-  })
-  return name.replace(/[-–,|]/g, ' ').replace(/\s+/g, ' ').trim() || title
+function cleanTitle(title) {
+  let clean = title
+  for (const keyword of EXAM_KEYWORDS) {
+    clean = clean.replace(new RegExp(keyword, 'gi'), '').trim()
+  }
+  return clean || title
 }
 
-export default function GoogleCalendar({ onUpdate }) {
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [hours, setHours] = useState({})
-  const [accessToken, setAccessToken] = useState(null)
-  const [scanned, setScanned] = useState(false)
+export async function syncGoogleCalendar(accessToken, userId, existingSubjects, existingEvents) {
+  const results = { added: 0, skipped: 0, errors: 0 }
 
-  async function scanCalendar(token) {
-    setLoading(true)
-    try {
-      const now = new Date().toISOString()
-      const future = new Date(Date.now() + 365 * 86400000).toISOString()
+  try {
+    const response = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=500&orderBy=startTime&singleEvents=true&timeMin=' +
+      new Date().toISOString(),
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const data = await response.json()
+    if (!data.items) return results
 
-      const [calRes, { data: existingSubjects }] = await Promise.all([
-        fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&timeMax=${future}&maxResults=100&singleEvents=true&orderBy=startTime`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        ),
-        supabase.from('subjects').select('exam_date')
-      ])
+    for (const event of data.items) {
+      const date = event.start?.date || event.start?.dateTime?.split('T')[0]
+      if (!date) continue
 
-      const data = await calRes.json()
-      const existingDates = new Set((existingSubjects || []).map(s => s.exam_date))
+      const title = event.summary || 'אירוע'
+      const examType = detectExamType(title)
 
-      const found = (data.items || [])
-        .filter(e => e.summary && isExamEvent(e.summary))
-        .map(e => ({
-          title: e.summary,
-          suggested: extractName(e.summary),
-          date: (e.start.date || e.start.dateTime?.split('T')[0]),
-          imported: false
-        }))
-        .filter(e => !existingDates.has(e.date))
+      if (examType) {
+        // בדוק אם כבר קיים ב-subjects
+        const exists = existingSubjects.some(s =>
+          s.exam_date === date &&
+          s.name.toLowerCase().includes(cleanTitle(title).toLowerCase().slice(0, 4))
+        )
+        if (exists) { results.skipped++; continue }
 
-      setEvents(found)
-      setScanned(true)
-    } catch (e) {
-      alert('שגיאה בטעינת היומן')
+        const { error } = await supabase.from('subjects').insert({
+          name: cleanTitle(title),
+          exam_date: date,
+          total_hours: 20,
+          event_type: examType,
+          notes: '',
+          user_id: userId
+        })
+        if (error) results.errors++
+        else results.added++
+
+      } else {
+        // בדוק אם כבר קיים ב-events
+        const exists = existingEvents.some(e =>
+          e.date === date && e.title === title
+        )
+        if (exists) { results.skipped++; continue }
+
+        const { error } = await supabase.from('events').insert({
+          title,
+          date,
+          type: 'אירוע',
+          notes: event.description || '',
+          recurring: false,
+          user_id: userId
+        })
+        if (error) results.errors++
+        else results.added++
+      }
     }
+  } catch (e) {
+    results.errors++
+  }
+
+  return results
+}
+
+export default function GoogleCalendarSync({ user, subjects, events, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+  const [accessToken, setAccessToken] = useState(null)
+
+  async function handleSync() {
+    setLoading(true)
+    setResult(null)
+
+    try {
+      let token = accessToken
+
+      if (!token) {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/calendar.readonly',
+          callback: async (response) => {
+            if (response.access_token) {
+              setAccessToken(response.access_token)
+              const res = await syncGoogleCalendar(response.access_token, user.id, subjects, events)
+              setResult(res)
+              onUpdate()
+            }
+            setLoading(false)
+          }
+        })
+        client.requestAccessToken({ prompt: 'select_account' })
+        return
+      }
+
+      const res = await syncGoogleCalendar(token, user.id, subjects, events)
+      setResult(res)
+      onUpdate()
+    } catch (e) {
+      setResult({ error: true })
+    }
+
     setLoading(false)
   }
 
-  const login = useGoogleLogin({
-    scope: 'https://www.googleapis.com/auth/calendar.readonly',
-    prompt: 'select_account',
-    onSuccess: async (tokenResponse) => {
-      setAccessToken(tokenResponse.access_token)
-      await scanCalendar(tokenResponse.access_token)
-    },
-    onError: () => alert('ההתחברות נכשלה')
-  })
-
-  async function importEvent(e, i) {
-    const h = parseFloat(hours[i])
-    if (!h || !e.suggested) return alert('נא למלא שעות')
-    await supabase.from('subjects').insert({
-      name: e.suggested,
-      exam_date: e.date,
-      total_hours: h
-    })
-    setEvents(prev => prev.map((ev, idx) => idx === i ? { ...ev, imported: true } : ev))
-    setHours(prev => { const next = { ...prev }; delete next[i]; return next })
-  }
-
-  const visibleEvents = events.filter(e => !e.imported)
-
   return (
     <div className="form-card">
-      <div className="form-title">סנכרון עם Google Calendar</div>
-
-      {!accessToken ? (
-        <button className="btn btn-primary" onClick={() => login()} disabled={loading}>
-          {loading ? 'טוען...' : 'התחבר וסרוק בגרויות'}
-        </button>
-      ) : loading ? (
-        <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>סורק...</div>
-      ) : (
-        <div>
-          {scanned && !visibleEvents.length ? (
-            <div style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 12 }}>
-              לא נמצאו בגרויות חדשות ביומן
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 12 }}>
-                נמצאו {visibleEvents.length} אירועים - הוסף שעות למידה לכל אחד
-              </div>
-              {visibleEvents.map((e, i) => (
-                <div key={i} className="subject-row" style={{ flexWrap: 'wrap', gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 140 }}>
-                    <div style={{ fontWeight: 600 }}>{e.suggested}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{e.title} - {e.date}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="number"
-                      placeholder="שעות"
-                      style={{ width: 80 }}
-                      value={hours[i] || ''}
-                      onChange={ev => setHours(p => ({ ...p, [i]: ev.target.value }))}
-                      min="1"
-                    />
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: 'auto', padding: '8px 14px' }}
-                      onClick={() => importEvent(e, i)}
-                    >
-                      הוסף
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <button
-            className="btn"
-            style={{ marginTop: 12, color: 'var(--text-dim)', background: 'transparent', border: '1px solid var(--border)' }}
-            onClick={() => { onUpdate(); scanCalendar(accessToken) }}
-          >
-            סרוק שוב
-          </button>
+      <div className="form-title">סנכרון Google Calendar</div>
+      <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
+        מייבא בגרויות ואירועים מיומן Google שלך. בגרויות ומבחנים יתווספו למקצועות, שאר האירועים ללוח השנה.
+      </div>
+      <button className="btn btn-primary" onClick={handleSync} disabled={loading}>
+        {loading ? 'מסנכרן...' : 'סנכרן עם Google Calendar'}
+      </button>
+      {result && !result.error && (
+        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--accent3)' }}>
+          סנכרון הושלם - נוספו {result.added} אירועים, דולגו {result.skipped} כפולים
+          {result.errors > 0 && <span style={{ color: 'var(--danger)' }}>, {result.errors} שגיאות</span>}
         </div>
+      )}
+      {result?.error && (
+        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--danger)' }}>שגיאה בסנכרון, נסה שוב</div>
       )}
     </div>
   )

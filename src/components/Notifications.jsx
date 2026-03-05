@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import GoogleCalendarSync from './GoogleCalendar'
 
-export default function Notifications({ darkMode, setDarkMode, user, settings, onSettingsUpdate }) {  const [permission, setPermission] = useState(Notification.permission)
-  const [time, setTime] = useState(localStorage.getItem('notif_time') || '08:00')
+export default function Notifications({ darkMode, setDarkMode, user, settings, onSettingsUpdate, subjects, events }) {  const [time, setTime] = useState(localStorage.getItem('notif_time') || '08:00')
   const [enabled, setEnabled] = useState(localStorage.getItem('notif_enabled') === 'true')
   const [saved, setSaved] = useState(false)
 
@@ -35,6 +35,7 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
 
   return (
     <>
+    <GoogleCalendarSync user={user} subjects={subjects} events={events} onUpdate={onSettingsUpdate} />
       <div className="form-card">
         <div className="form-title">מצב תצוגה</div>
         <button onClick={() => setDarkMode(!darkMode)} style={{

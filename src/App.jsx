@@ -1,3 +1,4 @@
+import { syncGoogleCalendar } from './components/GoogleCalendar'
 import AuthPage from './components/Auth'
 import WeeklySummary from './components/WeeklySummary'
 import Calendar from './components/Calendar'
@@ -129,8 +130,7 @@ export default function App() {
               {tab === 'weekly' && <WeeklySummary sessions={sessions} subjects={subjects} />}
               {tab === 'calendar' && <Calendar subjects={subjects} sessions={sessions} onUpdate={fetchAll} user={user} />}
               {tab === 'history' && <History sessions={sessions} subjects={subjects} onUpdate={fetchAll} />}
-              {tab === 'settings' && <Notifications darkMode={darkMode} setDarkMode={setDarkMode} user={user} settings={settings} onSettingsUpdate={fetchAll} />}
-            </>
+              {tab === 'settings' && <Notifications darkMode={darkMode} setDarkMode={setDarkMode} user={user} settings={settings} onSettingsUpdate={fetchAll} subjects={subjects} events={[]} />}            </>
           )}
         </div>
       </div>
