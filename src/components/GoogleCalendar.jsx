@@ -1,8 +1,31 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 
-const EXAM_KEYWORDS = ['בגרות', 'מתכונת', 'מבחן', 'בחינה', 'exam', 'test']
-const EXAM_TYPE_MAP = { 'בגרות': 'בגרות', 'מתכונת': 'מתכונת', 'מבחן': 'מבחן', 'בחינה': 'מבחן', 'exam': 'מבחן', 'test': 'מבחן' }
+const EXAM_TYPE_MAP = {
+  // בגרות
+  'בגרות': 'בגרות',
+  'מועד א': 'בגרות',
+  'מועד ב': 'בגרות',
+  'מועד ג': 'בגרות',
+  'bagrut': 'בגרות',
+  // מתכונת
+  'מתכונת': 'מתכונת',
+  'mock exam': 'מתכונת',
+  'mock': 'מתכונת',
+  // מבחן
+  'מבחן': 'מבחן',
+  'בחינה': 'מבחן',
+  'test': 'מבחן',
+  'exam': 'מבחן',
+  'quiz': 'מבחן',
+  'וועידה': 'מבחן',
+}
+
+const BIRTHDAY_KEYWORDS = [
+  'יום הולדת', 'יומהולדת', 'יו"ד', 'מזל טוב', 'birthday', 'bday', 'b-day'
+]
+
+const EXAM_KEYWORDS = Object.keys(EXAM_TYPE_MAP)
 
 function detectExamType(title) {
   const lower = title.toLowerCase()
@@ -10,6 +33,11 @@ function detectExamType(title) {
     if (lower.includes(keyword)) return type
   }
   return null
+}
+
+function detectBirthday(title) {
+  const lower = title.toLowerCase()
+  return BIRTHDAY_KEYWORDS.some(k => lower.includes(k))
 }
 
 function cleanTitle(title) {
@@ -38,9 +66,9 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
 
       const title = event.summary || 'אירוע'
       const examType = detectExamType(title)
+      const isBirthday = detectBirthday(title)
 
       if (examType) {
-        // בדוק אם כבר קיים ב-subjects
         const exists = existingSubjects.some(s =>
           s.exam_date === date &&
           s.name.toLowerCase().includes(cleanTitle(title).toLowerCase().slice(0, 4))
@@ -59,7 +87,6 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
         else results.added++
 
       } else {
-        // בדוק אם כבר קיים ב-events
         const exists = existingEvents.some(e =>
           e.date === date && e.title === title
         )
@@ -68,9 +95,9 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
         const { error } = await supabase.from('events').insert({
           title,
           date,
-          type: 'אירוע',
+          type: isBirthday ? 'יום הולדת' : 'אירוע',
           notes: event.description || '',
-          recurring: false,
+          recurring: isBirthday ? true : false,
           user_id: userId
         })
         if (error) results.errors++
