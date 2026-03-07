@@ -44,11 +44,9 @@ function cleanTitle(title) {
   return clean || title
 }
 
-// מחזיר את התאריך המקורי של האירוע (לא עתידי)
 function getOriginalDate(dateStr) {
   const date = new Date(dateStr)
   const today = new Date()
-  // אם התאריך הוא בעתיד הרחוק (recurring), קח את השנה הנוכחית או הקרובה
   if (date.getFullYear() > today.getFullYear() + 1) {
     date.setFullYear(today.getFullYear())
     if (date < today) date.setFullYear(today.getFullYear())
@@ -56,10 +54,16 @@ function getOriginalDate(dateStr) {
   return date.toISOString().split('T')[0]
 }
 
-export async function syncGoogleCalendar(accessToken, userId, existingSubjects, existingEvents) {
+export async function syncGoogleCalendar(accessToken, userId) {
   const results = { added: 0, skipped: 0, errors: 0 }
 
   try {
+    const { data: existingEvents } = await supabase.from('events').select('*').eq('user_id', userId)
+    const { data: existingSubjectsDB } = await supabase.from('subjects').select('*').eq('user_id', userId)
+
+    const allExistingEvents = existingEvents || []
+    const allExistingSubjects = existingSubjectsDB || []
+
     const response = await fetch(
       'https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=500&orderBy=startTime&singleEvents=true&timeMin=' +
       new Date().toISOString(),
@@ -75,12 +79,10 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
       const title = event.summary || 'אירוע'
       const examType = detectExamType(title)
       const isBirthday = detectBirthday(title)
-
-      // לאירועי recurring - שמור רק את התאריך המקורי
       const date = isBirthday ? getOriginalDate(rawDate) : rawDate
 
       if (examType) {
-        const exists = existingSubjects.some(s =>
+        const exists = allExistingSubjects.some(s =>
           s.exam_date === date &&
           s.name.toLowerCase().includes(cleanTitle(title).toLowerCase().slice(0, 4))
         )
@@ -95,14 +97,16 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
           user_id: userId
         })
         if (error) results.errors++
-        else results.added++
+        else {
+          results.added++
+          allExistingSubjects.push({ exam_date: date, name: cleanTitle(title) })
+        }
 
       } else {
-        // בדיקת כפילות לפי title + תאריך מקורי
-        const exists = existingEvents.some(e => {
-          const eDate = new Date(e.date)
-          const checkDate = new Date(date)
+        const exists = allExistingEvents.some(e => {
           if (isBirthday) {
+            const eDate = new Date(e.date)
+            const checkDate = new Date(date)
             return e.title === title &&
               eDate.getMonth() === checkDate.getMonth() &&
               eDate.getDate() === checkDate.getDate()
@@ -120,7 +124,10 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
           user_id: userId
         })
         if (error) results.errors++
-        else results.added++
+        else {
+          results.added++
+          allExistingEvents.push({ title, date })
+        }
       }
     }
   } catch (e) {
@@ -130,7 +137,7 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
   return results
 }
 
-export default function GoogleCalendarSync({ user, subjects, events, onUpdate }) {
+export default function GoogleCalendarSync({ user, onUpdate }) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [accessToken, setAccessToken] = useState(null)
@@ -149,7 +156,7 @@ export default function GoogleCalendarSync({ user, subjects, events, onUpdate })
           callback: async (response) => {
             if (response.access_token) {
               setAccessToken(response.access_token)
-              const res = await syncGoogleCalendar(response.access_token, user.id, subjects, events)
+              const res = await syncGoogleCalendar(response.access_token, user.id)
               setResult(res)
               onUpdate()
             }
@@ -160,7 +167,7 @@ export default function GoogleCalendarSync({ user, subjects, events, onUpdate })
         return
       }
 
-      const res = await syncGoogleCalendar(token, user.id, subjects, events)
+      const res = await syncGoogleCalendar(token, user.id)
       setResult(res)
       onUpdate()
     } catch (e) {
