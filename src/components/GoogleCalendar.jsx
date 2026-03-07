@@ -2,27 +2,23 @@ import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 
 const EXAM_TYPE_MAP = {
-  // בגרות
   'בגרות': 'בגרות',
   'מועד א': 'בגרות',
   'מועד ב': 'בגרות',
   'מועד ג': 'בגרות',
   'bagrut': 'בגרות',
-  // מתכונת
   'מתכונת': 'מתכונת',
   'mock exam': 'מתכונת',
   'mock': 'מתכונת',
-  // מבחן
   'מבחן': 'מבחן',
   'בחינה': 'מבחן',
   'test': 'מבחן',
   'exam': 'מבחן',
   'quiz': 'מבחן',
-  'וועידה': 'מבחן',
 }
 
 const BIRTHDAY_KEYWORDS = [
-  'יום הולדת', 'יומהולדת', 'יו"ד', 'מזל טוב', 'birthday', 'bday', 'b-day'
+  'יום הולדת', 'יומהולדת', 'מזל טוב', 'birthday', 'bday', 'b-day', 'happy birthday'
 ]
 
 const EXAM_KEYWORDS = Object.keys(EXAM_TYPE_MAP)
@@ -48,6 +44,18 @@ function cleanTitle(title) {
   return clean || title
 }
 
+// מחזיר את התאריך המקורי של האירוע (לא עתידי)
+function getOriginalDate(dateStr) {
+  const date = new Date(dateStr)
+  const today = new Date()
+  // אם התאריך הוא בעתיד הרחוק (recurring), קח את השנה הנוכחית או הקרובה
+  if (date.getFullYear() > today.getFullYear() + 1) {
+    date.setFullYear(today.getFullYear())
+    if (date < today) date.setFullYear(today.getFullYear())
+  }
+  return date.toISOString().split('T')[0]
+}
+
 export async function syncGoogleCalendar(accessToken, userId, existingSubjects, existingEvents) {
   const results = { added: 0, skipped: 0, errors: 0 }
 
@@ -61,12 +69,15 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
     if (!data.items) return results
 
     for (const event of data.items) {
-      const date = event.start?.date || event.start?.dateTime?.split('T')[0]
-      if (!date) continue
+      const rawDate = event.start?.date || event.start?.dateTime?.split('T')[0]
+      if (!rawDate) continue
 
       const title = event.summary || 'אירוע'
       const examType = detectExamType(title)
       const isBirthday = detectBirthday(title)
+
+      // לאירועי recurring - שמור רק את התאריך המקורי
+      const date = isBirthday ? getOriginalDate(rawDate) : rawDate
 
       if (examType) {
         const exists = existingSubjects.some(s =>
@@ -87,9 +98,17 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
         else results.added++
 
       } else {
-        const exists = existingEvents.some(e =>
-          e.date === date && e.title === title
-        )
+        // בדיקת כפילות לפי title + תאריך מקורי
+        const exists = existingEvents.some(e => {
+          const eDate = new Date(e.date)
+          const checkDate = new Date(date)
+          if (isBirthday) {
+            return e.title === title &&
+              eDate.getMonth() === checkDate.getMonth() &&
+              eDate.getDate() === checkDate.getDate()
+          }
+          return e.date === date && e.title === title
+        })
         if (exists) { results.skipped++; continue }
 
         const { error } = await supabase.from('events').insert({
@@ -97,7 +116,7 @@ export async function syncGoogleCalendar(accessToken, userId, existingSubjects, 
           date,
           type: isBirthday ? 'יום הולדת' : 'אירוע',
           notes: event.description || '',
-          recurring: isBirthday ? true : false,
+          recurring: isBirthday,
           user_id: userId
         })
         if (error) results.errors++
