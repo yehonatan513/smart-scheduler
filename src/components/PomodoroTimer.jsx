@@ -212,7 +212,10 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
             <>
               <div className="form-group" style={{ marginBottom: 16, textAlign: 'right' }}>
                 <label>מקצוע</label>
-                <select value={selectedSubject?.id || ''} onChange={e => setSelectedSubject(subjects.find(s => s.id === e.target.value))}
+                <select value={selectedSubject?.id || ''} onChange={e => {
+                  const found = subjects.find(s => String(s.id) === String(e.target.value))
+                  setSelectedSubject(found)
+                }}
                   style={{ width: '100%', padding: '10px 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontFamily: 'Heebo, sans-serif', fontSize: 14, outline: 'none' }}>
                   <option value="">בחר מקצוע...</option>
                   {sortedSubjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.event_type})</option>)}
