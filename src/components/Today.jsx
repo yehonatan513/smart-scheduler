@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 export default function Today({ schedule, sessions, todayStr, dailyHours, onUpdate, user }) {
   const [pendingItem, setPendingItem] = useState(null)
   const [actualHours, setActualHours] = useState('')
+  const [saving, setSaving] = useState(false)
   const isSaturday = new Date().getDay() === 6
 
   if (isSaturday) return (
@@ -21,13 +22,17 @@ export default function Today({ schedule, sessions, todayStr, dailyHours, onUpda
   async function confirmDone() {
     const hours = parseFloat(actualHours)
     if (!hours || hours <= 0) return alert('נא להזין שעות תקינות')
+    setSaving(true)
     const item = pendingItem
     const existing = sessions.find(s => s.subject_id === item.id && s.date === todayStr)
+    let error
     if (existing) {
-      await supabase.from('sessions').update({ completed: true, hours }).eq('id', existing.id)
+      ({ error } = await supabase.from('sessions').update({ completed: true, hours }).eq('id', existing.id))
     } else {
-      await supabase.from('sessions').insert({ subject_id: item.id, date: todayStr, hours, completed: true, user_id: user.id })
+      ({ error } = await supabase.from('sessions').insert({ subject_id: item.id, date: todayStr, hours, completed: true, user_id: user.id }))
     }
+    setSaving(false)
+    if (error) return alert('שגיאה בשמירה: ' + error.message)
     setPendingItem(null)
     setActualHours('')
     onUpdate()
@@ -36,11 +41,12 @@ export default function Today({ schedule, sessions, todayStr, dailyHours, onUpda
   async function undoDone(item) {
     const existing = sessions.find(s => s.subject_id === item.id && s.date === todayStr)
     if (existing) {
-      await supabase.from('sessions').update({ completed: false }).eq('id', existing.id)
+      const { error } = await supabase.from('sessions').update({ completed: false }).eq('id', existing.id)
+      if (error) return alert('שגיאה בביטול: ' + error.message)
     }
     onUpdate()
   }
-const urgentItems = schedule.filter(item => {
+  const urgentItems = schedule.filter(item => {
     if (item.event_type === 'בגרות') return item.daysLeft <= 7 && item.remaining > 7
     if (item.event_type === 'מתכונת') return item.daysLeft <= 3 && item.remaining > 3
     if (item.event_type === 'מבחן') return item.daysLeft <= 1 && item.remaining > 1
@@ -72,7 +78,7 @@ const urgentItems = schedule.filter(item => {
               autoFocus
             />
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={confirmDone}>אשר</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={confirmDone} disabled={saving}>{saving ? 'שומר...' : 'אשר'}</button>
               <button className="btn" style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)' }} onClick={() => { setPendingItem(null); setActualHours('') }}>ביטול</button>
             </div>
           </div>
@@ -123,7 +129,7 @@ const urgentItems = schedule.filter(item => {
               <div className="subject-name">{item.name}</div>
               <div className="subject-meta">
                 <span style={{ color: item.daysLeft <= 7 ? '#ff4757' : item.daysLeft <= 21 ? '#ffa502' : '#7070a0' }}>
-                  {item.daysLeft} ימים לבגרות
+                  {item.daysLeft} ימים ל{item.event_type || 'מבחן'}
                 </span>
                 {done && session ? (
                   <span style={{ color: 'var(--accent3)' }}>למדת {session.hours} שע'</span>

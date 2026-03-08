@@ -1,3 +1,5 @@
+import { toLocalDateStr } from '../utils'
+
 const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
 export default function WeeklySummary({ sessions, subjects }) {
@@ -31,7 +33,7 @@ export default function WeeklySummary({ sessions, subjects }) {
   for (let i = 0; i <= dayOfWeek; i++) {
     const d = new Date(startOfWeek)
     d.setDate(startOfWeek.getDate() + i)
-    const dateStr = d.toISOString().split('T')[0]
+    const dateStr = toLocalDateStr(d)
     const hours = sessions
       .filter(s => s.date === dateStr && s.completed)
       .reduce((sum, s) => sum + s.hours, 0)

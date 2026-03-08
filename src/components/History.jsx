@@ -3,9 +3,13 @@ import { supabase } from '../supabaseClient'
 
 export default function History({ sessions, subjects, onUpdate }) {
   const [confirmId, setConfirmId] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   async function deleteSession(id) {
-    await supabase.from('sessions').delete().eq('id', id)
+    setSaving(true)
+    const { error } = await supabase.from('sessions').delete().eq('id', id)
+    setSaving(false)
+    if (error) return alert('שגיאה במחיקה: ' + error.message)
     setConfirmId(null)
     onUpdate()
   }
@@ -46,7 +50,7 @@ export default function History({ sessions, subjects, onUpdate }) {
               פעולה זו לא ניתנת לביטול
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn" style={{ flex: 1, background: 'var(--danger)', color: 'white', border: 'none' }} onClick={() => deleteSession(confirmId)}>מחק</button>
+              <button className="btn" style={{ flex: 1, background: 'var(--danger)', color: 'white', border: 'none' }} onClick={() => deleteSession(confirmId)} disabled={saving}>{saving ? 'מוחק...' : 'מחק'}</button>
               <button className="btn" style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)' }} onClick={() => setConfirmId(null)}>ביטול</button>
             </div>
           </div>

@@ -24,7 +24,7 @@ export default function Progress({ subjects, sessions }) {
             </div>
             <div className="progress-footer">
               <span>{Math.round(done)} מתוך {s.total_hours} שעות</span>
-              <span className={`days-left ${daysClass}`}>{Math.max(0, daysLeft)} ימים לבגרות</span>
+              <span className={`days-left ${daysClass}`}>{Math.max(0, daysLeft)} ימים ל{s.event_type || 'מבחן'}</span>
             </div>
           </div>
         )

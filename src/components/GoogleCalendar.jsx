@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { toLocalDateStr } from '../utils'
 
 const EXAM_TYPE_MAP = {
   'בגרות': 'בגרות',
@@ -39,7 +40,8 @@ function detectBirthday(title) {
 function cleanTitle(title) {
   let clean = title
   for (const keyword of EXAM_KEYWORDS) {
-    clean = clean.replace(new RegExp(keyword, 'gi'), '').trim()
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    clean = clean.replace(new RegExp(escaped, 'gi'), '').trim()
   }
   return clean || title
 }
@@ -51,7 +53,7 @@ function getOriginalDate(dateStr) {
     date.setFullYear(today.getFullYear())
     if (date < today) date.setFullYear(today.getFullYear())
   }
-  return date.toISOString().split('T')[0]
+  return toLocalDateStr(date)
 }
 
 export async function syncGoogleCalendar(accessToken, userId) {

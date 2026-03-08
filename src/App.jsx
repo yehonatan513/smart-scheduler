@@ -5,6 +5,7 @@ import Calendar from './components/Calendar'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import { calculateSchedule, getTodayHours } from './scheduler'
+import { toLocalDateStr } from './utils'
 import Today from './components/Today'
 import Subjects from './components/Subjects'
 import Progress from './components/Progress'
@@ -59,22 +60,29 @@ export default function App() {
 
   async function fetchAll() {
     setLoading(true)
-    const [{ data: subs }, { data: sess }, { data: sets }] = await Promise.all([
-      supabase.from('subjects').select('*').order('exam_date').eq('user_id', user.id),
-      supabase.from('sessions').select('*').eq('user_id', user.id),
-      supabase.from('user_settings').select('*').eq('user_id', user.id).single()
-    ])
-    setSubjects(subs || [])
-    setSessions(sess || [])
-    if (sets) setSettings(sets)
+    try {
+      const [{ data: subs, error: e1 }, { data: sess, error: e2 }, { data: sets, error: e3 }] = await Promise.all([
+        supabase.from('subjects').select('*').eq('user_id', user.id).order('exam_date'),
+        supabase.from('sessions').select('*').eq('user_id', user.id),
+        supabase.from('user_settings').select('*').eq('user_id', user.id).single()
+      ])
+      if (e1 || e2) {
+        alert('שגיאה בטעינת הנתונים: ' + (e1?.message || e2?.message))
+      }
+      setSubjects(subs || [])
+      setSessions(sess || [])
+      if (sets && !e3) setSettings(sets)
+    } catch (err) {
+      alert('שגיאה בטעינת הנתונים')
+    }
     setLoading(false)
   }
 
   const schedule = calculateSchedule(subjects, sessions, settings)
-  const todayStr = new Date().toISOString().split('T')[0]
-  const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
+  const todayStr = toLocalDateStr()
+  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
   const dayName = DAYS[new Date().getDay()]
-  const dateStr = new Date().toLocaleDateString('he-IL', { year:'numeric', month:'long', day:'numeric' })
+  const dateStr = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
 
   function navigate(id) {
     setTab(id)
@@ -93,7 +101,7 @@ export default function App() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">לוח זמנים חכם</div>
         <div className="sidebar-date">יום {dayName}, {dateStr}</div>
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" style={{ flex: 1 }}>
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
@@ -105,6 +113,18 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <div style={{ padding: '12px 0', borderTop: '1px solid var(--border)', marginTop: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, padding: '0 14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user.email}
+          </div>
+          <button className="nav-item" onClick={async () => {
+            const { error } = await supabase.auth.signOut()
+            if (error) alert('שגיאה בהתנתקות: ' + error.message)
+          }}>
+            <span className="nav-icon">🚪</span>
+            <span>התנתק</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main */}

@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { toLocalDateStr } from '../utils'
 
 const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -9,7 +10,7 @@ export default function Stats({ sessions, subjects }) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    const dateStr = d.toISOString().split('T')[0]
+    const dateStr = toLocalDateStr(d)
     const hours = sessions
       .filter(s => s.date === dateStr && s.completed)
       .reduce((sum, s) => sum + s.hours, 0)
@@ -37,13 +38,13 @@ export default function Stats({ sessions, subjects }) {
 
   // ימים ברצף עם לימוד
   let streak = 0
-  for (let i = 0; i < 30; i++) {
+  for (let i = 1; i <= 30; i++) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    const dateStr = d.toISOString().split('T')[0]
+    const dateStr = toLocalDateStr(d)
     const studied = sessions.some(s => s.date === dateStr && s.completed)
     if (studied) streak++
-    else if (i > 0) break
+    else break
   }
 
   return (

@@ -14,17 +14,24 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
   const [editHours, setEditHours] = useState('')
   const [editEventType, setEditEventType] = useState('מבחן')
   const [editNotes, setEditNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
   async function addSubject() {
     if (!name || !examDate || !hours) return alert('נא למלא את כל השדות')
-    await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType, notes, user_id: user.id })
+    setSaving(true)
+    const { error } = await supabase.from('subjects').insert({ name, exam_date: examDate, total_hours: parseFloat(hours), event_type: eventType, notes, user_id: user.id })
+    setSaving(false)
+    if (error) return alert('שגיאה בהוספת מקצוע: ' + error.message)
     setName(''); setExamDate(''); setHours(''); setEventType('מבחן'); setNotes('')
     onUpdate()
   }
 
   async function deleteSubject(id) {
     if (!confirm('למחוק מקצוע זה?')) return
-    await supabase.from('subjects').delete().eq('id', id)
+    setSaving(true)
+    const { error } = await supabase.from('subjects').delete().eq('id', id)
+    setSaving(false)
+    if (error) return alert('שגיאה במחיקה: ' + error.message)
     onUpdate()
   }
 
@@ -39,13 +46,16 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
 
   async function saveEdit() {
     if (!editName || !editDate || !editHours) return alert('נא למלא את כל השדות')
-    await supabase.from('subjects').update({
+    setSaving(true)
+    const { error } = await supabase.from('subjects').update({
       name: editName,
       exam_date: editDate,
       total_hours: parseFloat(editHours),
       event_type: editEventType,
       notes: editNotes
     }).eq('id', editId)
+    setSaving(false)
+    if (error) return alert('שגיאה בעדכון: ' + error.message)
     setEditId(null)
     onUpdate()
   }
@@ -96,7 +106,7 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
             />
           </div>
         </div>
-        <button className="btn btn-primary" onClick={addSubject}>הוסף מקצוע</button>
+        <button className="btn btn-primary" onClick={addSubject} disabled={saving}>{saving ? 'שומר...' : 'הוסף מקצוע'}</button>
       </div>
 
       {!subjects.length ? (
@@ -149,7 +159,7 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveEdit}>שמור</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveEdit} disabled={saving}>{saving ? 'שומר...' : 'שמור'}</button>
                 <button className="btn" style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)' }} onClick={() => setEditId(null)}>ביטול</button>
               </div>
             </div>
@@ -176,7 +186,7 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn" style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', padding: '6px 12px', fontSize: 12, borderRadius: 6 }} onClick={() => startEdit(s)}>עריכה</button>
-              <button className="btn btn-danger" onClick={() => deleteSubject(s.id)}>הסר</button>
+              <button className="btn btn-danger" onClick={() => deleteSubject(s.id)} disabled={saving}>{saving ? '...' : 'הסר'}</button>
             </div>
           </div>
         )

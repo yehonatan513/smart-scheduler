@@ -39,7 +39,7 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
 
   return (
     <>
-    <GoogleCalendarSync user={user} subjects={subjects} events={events} onUpdate={onSettingsUpdate} />
+      <GoogleCalendarSync user={user} onUpdate={onSettingsUpdate} />
       <div className="form-card">
         <div className="form-title">מצב תצוגה</div>
         <button onClick={() => setDarkMode(!darkMode)} style={{
@@ -74,11 +74,13 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
           const max = parseInt(document.getElementById('maxSubjects').value)
           const min = parseFloat(document.getElementById('minHours').value)
           const existing = settings?.id
+          let error
           if (existing) {
-            await supabase.from('user_settings').update({ max_subjects_per_day: max, min_hours_per_subject: min }).eq('id', existing)
+            ({ error } = await supabase.from('user_settings').update({ max_subjects_per_day: max, min_hours_per_subject: min }).eq('id', existing))
           } else {
-            await supabase.from('user_settings').insert({ user_id: user.id, max_subjects_per_day: max, min_hours_per_subject: min })
+            ({ error } = await supabase.from('user_settings').insert({ user_id: user.id, max_subjects_per_day: max, min_hours_per_subject: min }))
           }
+          if (error) return alert('שגיאה בשמירת הגדרות: ' + error.message)
           onSettingsUpdate()
         }}>
           שמור הגדרות

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import { toLocalDateStr } from '../utils'
 
 const DAYS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
 const DAYS_FULL = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
-const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
+const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
 const TYPE_COLOR = {
   'בגרות': '#ff6584',
@@ -29,6 +30,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const [addDate, setAddDate] = useState('')
   const [addType, setAddType] = useState('אירוע')
   const [editItem, setEditItem] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   // טופס הוספה
   const [formTitle, setFormTitle] = useState('')
@@ -40,12 +42,13 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
 
   async function loadEvents() {
     if (eventsLoaded) return
-    const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
+    const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id)
+    if (error) return console.error('שגיאה בטעינת אירועים:', error.message)
     setEvents(data || [])
     setEventsLoaded(true)
   }
 
-  useState(() => { loadEvents() }, [])
+  useEffect(() => { loadEvents() }, [])
 
   // כל האירועים ביחד
   function getAllItemsForDate(dateStr) {
@@ -113,38 +116,44 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
 
   async function saveItem() {
     if (!formTitle || !formDate) return alert('נא למלא שם ותאריך')
+    setSaving(true)
 
     if (editItem) {
       if (editItem._type === 'subject') {
-        if (!formHours) return alert('נא למלא שעות למידה')
-        await supabase.from('subjects').update({
+        if (!formHours) { setSaving(false); return alert('נא למלא שעות למידה') }
+        const { error } = await supabase.from('subjects').update({
           name: formTitle, exam_date: formDate,
           total_hours: parseFloat(formHours), event_type: formExamType, notes: formNotes
         }).eq('id', editItem.id)
+        if (error) { setSaving(false); return alert('שגיאה בעדכון: ' + error.message) }
       } else {
-        await supabase.from('events').update({
+        const { error } = await supabase.from('events').update({
           title: formTitle, date: formDate, type: addType, notes: formNotes, recurring: formRecurring
         }).eq('id', editItem.id)
+        if (error) { setSaving(false); return alert('שגיאה בעדכון: ' + error.message) }
         const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
         setEvents(data || [])
       }
     } else {
       if (EXAM_TYPES.includes(addType)) {
-        if (!formHours) return alert('נא למלא שעות למידה')
-        await supabase.from('subjects').insert({
+        if (!formHours) { setSaving(false); return alert('נא למלא שעות למידה') }
+        const { error } = await supabase.from('subjects').insert({
           name: formTitle, exam_date: formDate,
           total_hours: parseFloat(formHours), event_type: addType, notes: formNotes, user_id: user.id
         })
+        if (error) { setSaving(false); return alert('שגיאה בהוספה: ' + error.message) }
       } else {
-        await supabase.from('events').insert({
+        const { error } = await supabase.from('events').insert({
           title: formTitle, date: formDate, type: addType,
           notes: formNotes, recurring: addType === 'יום הולדת' ? true : formRecurring, user_id: user.id
         })
+        if (error) { setSaving(false); return alert('שגיאה בהוספה: ' + error.message) }
         const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
         setEvents(data || [])
       }
     }
 
+    setSaving(false)
     setShowAddModal(false)
     onUpdate()
   }
@@ -152,13 +161,17 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
   async function deleteItem() {
     if (!editItem) return
     if (!confirm('למחוק?')) return
+    setSaving(true)
     if (editItem._type === 'subject') {
-      await supabase.from('subjects').delete().eq('id', editItem.id)
+      const { error } = await supabase.from('subjects').delete().eq('id', editItem.id)
+      if (error) { setSaving(false); return alert('שגיאה במחיקה: ' + error.message) }
     } else {
-      await supabase.from('events').delete().eq('id', editItem.id)
+      const { error } = await supabase.from('events').delete().eq('id', editItem.id)
+      if (error) { setSaving(false); return alert('שגיאה במחיקה: ' + error.message) }
       const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
       setEvents(data || [])
     }
+    setSaving(false)
     setShowAddModal(false)
     onUpdate()
   }
@@ -183,10 +196,10 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
           {cells.map((day, i) => {
             if (!day) return <div key={i} />
-            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
             const items = getAllItemsForDate(dateStr)
             const studyHours = getStudyHoursForDate(dateStr)
-            const isToday = dateStr === today.toISOString().split('T')[0]
+            const isToday = dateStr === toLocalDateStr(today)
             const isPast = new Date(dateStr) < today
 
             return (
@@ -231,10 +244,10 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {days.map((d, i) => {
-          const dateStr = d.toISOString().split('T')[0]
+          const dateStr = toLocalDateStr(d)
           const items = getAllItemsForDate(dateStr)
           const studyHours = getStudyHoursForDate(dateStr)
-          const isToday = dateStr === today.toISOString().split('T')[0]
+          const isToday = dateStr === toLocalDateStr(today)
 
           return (
             <div key={i} onClick={() => { setCurrentDate(d); setView('day') }}
@@ -265,11 +278,11 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
 
   // תצוגת יום
   function DayView() {
-    const dateStr = currentDate.toISOString().split('T')[0]
+    const dateStr = toLocalDateStr(currentDate)
     const items = getAllItemsForDate(dateStr)
     const studyHours = getStudyHoursForDate(dateStr)
     const isFuture = currentDate > today
-    const isToday = dateStr === today.toISOString().split('T')[0]
+    const isToday = dateStr === toLocalDateStr(today)
 
     const dayName = DAYS_FULL[currentDate.getDay()]
     const dateFormatted = currentDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -336,7 +349,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
       {/* מתג תצוגה */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 2 }}>
-          {[['month','חודש'],['week','שבוע'],['day','יום']].map(([v, label]) => (
+          {[['month', 'חודש'], ['week', 'שבוע'], ['day', 'יום']].map(([v, label]) => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '6px 14px', border: 'none', borderRadius: 7, cursor: 'pointer',
               fontFamily: 'Heebo, sans-serif', fontSize: 13, fontWeight: 500,
@@ -433,11 +446,11 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveItem}>
-                {editItem ? 'שמור' : 'הוסף'}
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveItem} disabled={saving}>
+                {saving ? 'שומר...' : editItem ? 'שמור' : 'הוסף'}
               </button>
               {editItem && (
-                <button className="btn btn-danger" onClick={deleteItem}>מחק</button>
+                <button className="btn btn-danger" onClick={deleteItem} disabled={saving}>{saving ? '...' : 'מחק'}</button>
               )}
               <button className="btn" style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)' }} onClick={() => setShowAddModal(false)}>
                 ביטול
