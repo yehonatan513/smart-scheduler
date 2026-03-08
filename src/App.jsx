@@ -12,6 +12,7 @@ import Progress from './components/Progress'
 import Stats from './components/Stats'
 import History from './components/History'
 import Notifications from './components/Notifications'
+import PomodoroTimer from './components/PomodoroTimer'
 import './App.css'
 
 const NAV_ITEMS = [
@@ -154,6 +155,9 @@ export default function App() {
           )}
         </div>
       </div>
+      {user && !loading && (
+        <PomodoroTimer user={user} subjects={subjects} sessions={sessions} onUpdate={fetchAll} />
+      )}
     </div>
   )
 }
