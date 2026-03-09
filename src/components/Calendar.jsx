@@ -15,7 +15,8 @@ const TYPE_COLOR = {
 }
 
 const EXAM_TYPES = ['מבחן', 'מתכונת', 'בגרות']
-const EVENT_TYPES = ['אירוע', 'יום הולדת']
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
+const HOUR_HEIGHT = 60 // px per hour
 
 export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const today = new Date()
@@ -27,18 +28,17 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const [events, setEvents] = useState([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [addDate, setAddDate] = useState('')
   const [addType, setAddType] = useState('אירוע')
   const [editItem, setEditItem] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // טופס הוספה
   const [formTitle, setFormTitle] = useState('')
   const [formDate, setFormDate] = useState('')
   const [formNotes, setFormNotes] = useState('')
   const [formRecurring, setFormRecurring] = useState(false)
-  const [formExamType, setFormExamType] = useState('מבחן')
   const [formHours, setFormHours] = useState('')
+  const [formStartTime, setFormStartTime] = useState('')
+  const [formEndTime, setFormEndTime] = useState('')
 
   async function loadEvents() {
     if (eventsLoaded) return
@@ -50,35 +50,25 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
 
   useEffect(() => { loadEvents() }, [])
 
-  // כל האירועים ביחד
   function getAllItemsForDate(dateStr) {
     const items = []
-
-    // בחינות מ-subjects
     subjects.forEach(s => {
-      if (s.exam_date === dateStr) {
+      if (s.exam_date === dateStr)
         items.push({ ...s, _type: 'subject', color: TYPE_COLOR[s.event_type] || '#6c63ff', label: s.event_type })
-      }
     })
-
-    // אירועים רגילים
     const dateObj = new Date(dateStr)
     events.forEach(e => {
       const eDate = new Date(e.date)
       const matches = e.date === dateStr ||
         (e.recurring && eDate.getMonth() === dateObj.getMonth() && eDate.getDate() === dateObj.getDate())
-      if (matches) {
+      if (matches)
         items.push({ ...e, _type: 'event', color: TYPE_COLOR[e.type] || '#ffa502', label: e.type })
-      }
     })
-
     return items
   }
 
   function getStudyHoursForDate(dateStr) {
-    return sessions
-      .filter(s => s.date === dateStr && s.completed)
-      .reduce((sum, s) => sum + s.hours, 0)
+    return sessions.filter(s => s.date === dateStr && s.completed).reduce((sum, s) => sum + s.hours, 0)
   }
 
   function navigate(dir) {
@@ -89,14 +79,14 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     setCurrentDate(d)
   }
 
-  function openAdd(dateStr) {
-    setAddDate(dateStr)
+  function openAdd(dateStr, hour = null) {
     setFormDate(dateStr)
     setFormTitle('')
     setFormNotes('')
     setFormRecurring(false)
-    setFormExamType('מבחן')
     setFormHours('')
+    setFormStartTime(hour !== null ? `${String(hour).padStart(2, '0')}:00` : '')
+    setFormEndTime(hour !== null ? `${String(hour + 1).padStart(2, '0')}:00` : '')
     setAddType('אירוע')
     setEditItem(null)
     setShowAddModal(true)
@@ -108,9 +98,10 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     setFormDate(item.exam_date || item.date)
     setFormNotes(item.notes || '')
     setFormRecurring(item.recurring || false)
-    setFormExamType(item.event_type || 'מבחן')
     setFormHours(item.total_hours || '')
-    setAddType(item._type === 'subject' ? 'בחינה' : item.type)
+    setFormStartTime(item.start_time || '')
+    setFormEndTime(item.end_time || '')
+    setAddType(item._type === 'subject' ? (item.event_type || 'מבחן') : item.type)
     setShowAddModal(true)
   }
 
@@ -123,14 +114,15 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
         if (!formHours) { setSaving(false); return alert('נא למלא שעות למידה') }
         const { error } = await supabase.from('subjects').update({
           name: formTitle, exam_date: formDate,
-          total_hours: parseFloat(formHours), event_type: formExamType, notes: formNotes
+          total_hours: parseFloat(formHours), event_type: addType, notes: formNotes
         }).eq('id', editItem.id)
-        if (error) { setSaving(false); return alert('שגיאה בעדכון: ' + error.message) }
+        if (error) { setSaving(false); return alert('שגיאה: ' + error.message) }
       } else {
         const { error } = await supabase.from('events').update({
-          title: formTitle, date: formDate, type: addType, notes: formNotes, recurring: formRecurring
+          title: formTitle, date: formDate, type: addType, notes: formNotes,
+          recurring: formRecurring, start_time: formStartTime || null, end_time: formEndTime || null
         }).eq('id', editItem.id)
-        if (error) { setSaving(false); return alert('שגיאה בעדכון: ' + error.message) }
+        if (error) { setSaving(false); return alert('שגיאה: ' + error.message) }
         const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
         setEvents(data || [])
       }
@@ -141,13 +133,14 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
           name: formTitle, exam_date: formDate,
           total_hours: parseFloat(formHours), event_type: addType, notes: formNotes, user_id: user.id
         })
-        if (error) { setSaving(false); return alert('שגיאה בהוספה: ' + error.message) }
+        if (error) { setSaving(false); return alert('שגיאה: ' + error.message) }
       } else {
         const { error } = await supabase.from('events').insert({
           title: formTitle, date: formDate, type: addType,
-          notes: formNotes, recurring: addType === 'יום הולדת' ? true : formRecurring, user_id: user.id
+          notes: formNotes, recurring: addType === 'יום הולדת' ? true : formRecurring,
+          start_time: formStartTime || null, end_time: formEndTime || null, user_id: user.id
         })
-        if (error) { setSaving(false); return alert('שגיאה בהוספה: ' + error.message) }
+        if (error) { setSaving(false); return alert('שגיאה: ' + error.message) }
         const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
         setEvents(data || [])
       }
@@ -164,10 +157,10 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     setSaving(true)
     if (editItem._type === 'subject') {
       const { error } = await supabase.from('subjects').delete().eq('id', editItem.id)
-      if (error) { setSaving(false); return alert('שגיאה במחיקה: ' + error.message) }
+      if (error) { setSaving(false); return alert('שגיאה: ' + error.message) }
     } else {
       const { error } = await supabase.from('events').delete().eq('id', editItem.id)
-      if (error) { setSaving(false); return alert('שגיאה במחיקה: ' + error.message) }
+      if (error) { setSaving(false); return alert('שגיאה: ' + error.message) }
       const { data } = await supabase.from('events').select('*').eq('user_id', user.id)
       setEvents(data || [])
     }
@@ -176,7 +169,135 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     onUpdate()
   }
 
-  // תצוגת חודש
+  // המרת שעה "HH:MM" למספר דקות
+  function timeToMinutes(t) {
+    if (!t) return null
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }
+
+  // קומפוננטת גריד שעות (משותפת ליום ושבוע)
+  function TimeGrid({ days }) {
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+    const todayStr = toLocalDateStr(today)
+
+    return (
+      <div style={{ display: 'flex', overflowY: 'auto', maxHeight: '70vh', position: 'relative' }}>
+        {/* עמודת שעות */}
+        <div style={{ width: 48, flexShrink: 0, paddingTop: 32 }}>
+          {HOURS.map(h => (
+            <div key={h} style={{ height: HOUR_HEIGHT, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: -7 }}>
+                {String(h).padStart(2, '0')}:00
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* עמודות ימים */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(${days.length}, 1fr)`, borderRight: '1px solid var(--border)' }}>
+          {days.map((dayObj, di) => {
+            const dateStr = toLocalDateStr(dayObj)
+            const isToday = dateStr === todayStr
+            const items = getAllItemsForDate(dateStr)
+            const timedItems = items.filter(item => item.start_time)
+            const allDayItems = items.filter(item => !item.start_time)
+
+            return (
+              <div key={di} style={{ borderLeft: '1px solid var(--border)', position: 'relative' }}>
+                {/* כותרת יום */}
+                <div style={{
+                  height: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  borderBottom: '1px solid var(--border)', position: 'sticky', top: 0,
+                  background: 'var(--surface)', zIndex: 2
+                }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{days.length > 1 ? DAYS_HE[dayObj.getDay()] : ''}</span>
+                  <span style={{
+                    fontSize: 13, fontWeight: 700,
+                    color: isToday ? 'white' : 'var(--text)',
+                    background: isToday ? 'var(--accent)' : 'transparent',
+                    borderRadius: '50%', width: 24, height: 24,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>{dayObj.getDate()}</span>
+                </div>
+
+                {/* אירועי כל היום */}
+                {allDayItems.length > 0 && (
+                  <div style={{ borderBottom: '1px solid var(--border)', padding: '2px 2px', minHeight: 24 }}>
+                    {allDayItems.map((item, j) => (
+                      <div key={j} onClick={() => openEdit(item)} style={{
+                        fontSize: 10, background: item.color, color: 'white',
+                        borderRadius: 3, padding: '1px 5px', marginBottom: 1,
+                        overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                        cursor: 'pointer', fontWeight: 600
+                      }}>
+                        {item.name || item.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* רשת שעות */}
+                <div style={{ position: 'relative', height: HOUR_HEIGHT * 24 }}>
+                  {HOURS.map(h => (
+                    <div key={h} onClick={() => openAdd(dateStr, h)} style={{
+                      position: 'absolute', top: h * HOUR_HEIGHT, left: 0, right: 0,
+                      height: HOUR_HEIGHT, borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer',
+                      background: h % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'
+                    }} />
+                  ))}
+
+                  {/* קו "עכשיו" */}
+                  {isToday && (
+                    <div style={{
+                      position: 'absolute', left: 0, right: 0,
+                      top: (nowMinutes / 60) * HOUR_HEIGHT,
+                      height: 2, background: 'var(--accent)', zIndex: 3,
+                      boxShadow: '0 0 6px var(--accent)'
+                    }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', marginTop: -4, marginRight: -5, float: 'right' }} />
+                    </div>
+                  )}
+
+                  {/* אירועים עם שעה */}
+                  {timedItems.map((item, j) => {
+                    const start = timeToMinutes(item.start_time)
+                    const end = timeToMinutes(item.end_time) || start + 60
+                    const top = (start / 60) * HOUR_HEIGHT
+                    const height = Math.max(((end - start) / 60) * HOUR_HEIGHT, 24)
+
+                    return (
+                      <div key={j} onClick={e => { e.stopPropagation(); openEdit(item) }}
+                        style={{
+                          position: 'absolute', left: 2, right: 2,
+                          top, height,
+                          background: item.color + 'dd',
+                          borderRadius: 5, padding: '2px 6px',
+                          overflow: 'hidden', cursor: 'pointer', zIndex: 1,
+                          borderRight: `3px solid ${item.color}`,
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+                        }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name || item.title}
+                        </div>
+                        {height > 30 && (
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)' }}>
+                            {item.start_time}{item.end_time ? ` - ${item.end_time}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   function MonthView() {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -200,14 +321,13 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
             const items = getAllItemsForDate(dateStr)
             const studyHours = getStudyHoursForDate(dateStr)
             const isToday = dateStr === toLocalDateStr(today)
-            const isPast = new Date(dateStr) < today
 
             return (
-              <div key={i} onClick={() => { setSelectedDay(dateStr); setView('day'); setCurrentDate(new Date(dateStr)) }}
+              <div key={i} onClick={() => { setCurrentDate(new Date(dateStr)); setView('day') }}
                 style={{
                   minHeight: 70, background: isToday ? 'rgba(108,99,255,0.15)' : 'var(--surface)',
                   border: `1px solid ${isToday ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: 6, padding: '4px 6px', cursor: 'pointer', transition: 'border-color 0.2s'
+                  borderRadius: 6, padding: '4px 6px', cursor: 'pointer'
                 }}>
                 <div style={{ fontSize: 11, color: isToday ? 'var(--accent)' : 'var(--text-dim)', fontWeight: isToday ? 700 : 400, marginBottom: 2 }}>{day}</div>
                 {studyHours > 0 && <div style={{ width: '100%', height: 3, background: 'var(--accent3)', borderRadius: 2, marginBottom: 2, opacity: 0.7 }} />}
@@ -217,6 +337,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
                     borderRadius: 3, padding: '1px 4px', marginBottom: 1, fontWeight: 600,
                     overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'
                   }}>
+                    {item.start_time && <span style={{ opacity: 0.7 }}>{item.start_time.slice(0, 5)} </span>}
                     {item.name || item.title}
                   </div>
                 ))}
@@ -229,109 +350,21 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     )
   }
 
-  // תצוגת שבוע
   function WeekView() {
     const startOfWeek = new Date(currentDate)
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-
-    const days = []
-    for (let i = 0; i < 7; i++) {
+    const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(startOfWeek)
       d.setDate(startOfWeek.getDate() + i)
-      days.push(d)
-    }
-
-    return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-        {days.map((d, i) => {
-          const dateStr = toLocalDateStr(d)
-          const items = getAllItemsForDate(dateStr)
-          const studyHours = getStudyHoursForDate(dateStr)
-          const isToday = dateStr === toLocalDateStr(today)
-
-          return (
-            <div key={i} onClick={() => { setCurrentDate(d); setView('day') }}
-              style={{
-                background: isToday ? 'rgba(108,99,255,0.15)' : 'var(--surface)',
-                border: `1px solid ${isToday ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 8, padding: 10, cursor: 'pointer', minHeight: 120
-              }}>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>{DAYS_HE[i]}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: isToday ? 'var(--accent)' : 'var(--text)', marginBottom: 6 }}>{d.getDate()}</div>
-              {studyHours > 0 && <div style={{ fontSize: 11, color: 'var(--accent3)', marginBottom: 4 }}>{studyHours} שע' למידה</div>}
-              {items.map((item, j) => (
-                <div key={j} onClick={e => { e.stopPropagation(); openEdit(item) }}
-                  style={{
-                    fontSize: 11, background: `${item.color}22`, color: item.color,
-                    borderRadius: 4, padding: '3px 6px', marginBottom: 3, fontWeight: 600,
-                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'
-                  }}>
-                  {item.name || item.title}
-                </div>
-              ))}
-            </div>
-          )
-        })}
-      </div>
-    )
+      return d
+    })
+    return <TimeGrid days={days} />
   }
 
-  // תצוגת יום
   function DayView() {
-    const dateStr = toLocalDateStr(currentDate)
-    const items = getAllItemsForDate(dateStr)
-    const studyHours = getStudyHoursForDate(dateStr)
-    const isFuture = currentDate > today
-    const isToday = dateStr === toLocalDateStr(today)
-
-    const dayName = DAYS_FULL[currentDate.getDay()]
-    const dateFormatted = currentDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
-
-    return (
-      <div>
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>יום {dayName}, {dateFormatted}</div>
-          {isToday && <div style={{ fontSize: 13, color: 'var(--accent)', marginTop: 4 }}>היום</div>}
-        </div>
-
-        {studyHours > 0 && (
-          <div style={{ background: 'rgba(67,233,123,0.1)', border: '1px solid rgba(67,233,123,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--accent3)' }}>
-            למדת {studyHours} שעות ביום זה
-          </div>
-        )}
-
-        {!items.length ? (
-          <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>אין אירועים ביום זה</div>
-        ) : (
-          <div style={{ marginBottom: 16 }}>
-            {items.map((item, i) => (
-              <div key={i} onClick={() => openEdit(item)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 16px', background: 'var(--surface)',
-                  border: `1px solid ${item.color}44`, borderRadius: 10,
-                  marginBottom: 8, cursor: 'pointer'
-                }}>
-                <div style={{ width: 4, height: 40, background: item.color, borderRadius: 2, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{item.name || item.title}</div>
-                  <div style={{ fontSize: 12, color: item.color, marginTop: 2 }}>{item.label}</div>
-                  {item.notes && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>{item.notes}</div>}
-                  {item._type === 'subject' && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{item.total_hours} שעות למידה משוערות</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <button className="btn btn-primary" onClick={() => openAdd(dateStr)}>
-          הוסף אירוע ליום זה
-        </button>
-      </div>
-    )
+    return <TimeGrid days={[currentDate]} />
   }
 
-  // כותרת ניווט
   function getNavTitle() {
     if (view === 'month') return `${MONTHS_HE[currentDate.getMonth()]} ${currentDate.getFullYear()}`
     if (view === 'week') {
@@ -346,7 +379,6 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
 
   return (
     <div>
-      {/* מתג תצוגה */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 2 }}>
           {[['month', 'חודש'], ['week', 'שבוע'], ['day', 'יום']].map(([v, label]) => (
@@ -354,8 +386,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
               padding: '6px 14px', border: 'none', borderRadius: 7, cursor: 'pointer',
               fontFamily: 'Heebo, sans-serif', fontSize: 13, fontWeight: 500,
               background: view === v ? 'var(--accent)' : 'transparent',
-              color: view === v ? 'white' : 'var(--text-dim)',
-              transition: 'all 0.2s'
+              color: view === v ? 'white' : 'var(--text-dim)', transition: 'all 0.2s'
             }}>{label}</button>
           ))}
         </div>
@@ -376,8 +407,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
       {view === 'week' && <WeekView />}
       {view === 'day' && <DayView />}
 
-      {/* מקרא */}
-      {view !== 'day' && (
+      {view !== 'day' && view !== 'week' && (
         <div style={{ display: 'flex', gap: 14, marginTop: 16, flexWrap: 'wrap' }}>
           {Object.entries(TYPE_COLOR).map(([type, color]) => (
             <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-dim)' }}>
@@ -385,14 +415,9 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
               {type}
             </div>
           ))}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-dim)' }}>
-            <div style={{ width: 20, height: 3, background: 'var(--accent3)', borderRadius: 2 }} />
-            יום לימוד
-          </div>
         </div>
       )}
 
-      {/* מודל הוספה/עריכה */}
       {showAddModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 440 }}>
@@ -424,6 +449,19 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
               <label>תאריך</label>
               <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
             </div>
+
+            {!EXAM_TYPES.includes(addType) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <div className="form-group">
+                  <label>שעת התחלה</label>
+                  <input type="time" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>שעת סיום</label>
+                  <input type="time" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} />
+                </div>
+              </div>
+            )}
 
             {EXAM_TYPES.includes(addType) && (
               <div className="form-group" style={{ marginBottom: 12 }}>
