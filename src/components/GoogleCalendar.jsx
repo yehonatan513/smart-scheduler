@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { toLocalDateStr } from '../utils'
 
 const EXAM_TYPE_MAP = {
   'בגרות': 'בגרות',
@@ -40,8 +39,7 @@ function detectBirthday(title) {
 function cleanTitle(title) {
   let clean = title
   for (const keyword of EXAM_KEYWORDS) {
-    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    clean = clean.replace(new RegExp(escaped, 'gi'), '').trim()
+    clean = clean.replace(new RegExp(keyword, 'gi'), '').trim()
   }
   return clean || title
 }
@@ -53,7 +51,13 @@ function getOriginalDate(dateStr) {
     date.setFullYear(today.getFullYear())
     if (date < today) date.setFullYear(today.getFullYear())
   }
-  return toLocalDateStr(date)
+  return date.toISOString().split('T')[0]
+}
+
+function extractTime(dateTimeStr) {
+  if (!dateTimeStr || !dateTimeStr.includes('T')) return null
+  const date = new Date(dateTimeStr)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 export async function syncGoogleCalendar(accessToken, userId) {
@@ -75,6 +79,7 @@ export async function syncGoogleCalendar(accessToken, userId) {
     if (!data.items) return results
 
     for (const event of data.items) {
+      const isAllDay = !!event.start?.date
       const rawDate = event.start?.date || event.start?.dateTime?.split('T')[0]
       if (!rawDate) continue
 
@@ -82,6 +87,10 @@ export async function syncGoogleCalendar(accessToken, userId) {
       const examType = detectExamType(title)
       const isBirthday = detectBirthday(title)
       const date = isBirthday ? getOriginalDate(rawDate) : rawDate
+
+      // שעות - רק לאירועים שאינם כל היום
+      const startTime = isAllDay ? null : extractTime(event.start?.dateTime)
+      const endTime = isAllDay ? null : extractTime(event.end?.dateTime)
 
       if (examType) {
         const exists = allExistingSubjects.some(s =>
@@ -123,6 +132,8 @@ export async function syncGoogleCalendar(accessToken, userId) {
           type: isBirthday ? 'יום הולדת' : 'אירוע',
           notes: event.description || '',
           recurring: isBirthday,
+          start_time: startTime,
+          end_time: endTime,
           user_id: userId
         })
         if (error) results.errors++
