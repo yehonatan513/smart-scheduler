@@ -64,6 +64,16 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
   const studiedSecondsRef = useRef(0)
 
   const todayStr = toLocalDateStr()
+  
+  function stopEarly() {
+    const elapsed = studiedSecondsRef.current
+    localStorage.removeItem('pomodoro_start')
+    localStorage.removeItem('pomodoro_total')
+    localStorage.removeItem('pomodoro_subject')
+    localStorage.removeItem('pomodoro_is_break')
+    if (elapsed > 60) endSession(elapsed)
+    else { clearInterval(intervalRef.current); setPhase('idle') }
+  }
 
   function playSound() {
     try {
@@ -113,41 +123,71 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
   useEffect(() => {
     if (phase !== 'studying' && phase !== 'break') return
     clearInterval(intervalRef.current)
-    let s = isBreak ? breakMinutes * 60 : workMinutes * 60
-    studiedSecondsRef.current = 0
-    setSecondsLeft(s)
+
     intervalRef.current = setInterval(() => {
-      s--
-      if (!isBreak) studiedSecondsRef.current++
-      setSecondsLeft(s)
-      if (s <= 0) {
+      const start = Number(localStorage.getItem('pomodoro_start'))
+      const total = Number(localStorage.getItem('pomodoro_total'))
+      const elapsed = Math.floor((Date.now() - start) / 1000)
+      const remaining = Math.max(total - elapsed, 0)
+
+      if (!isBreak) studiedSecondsRef.current = elapsed
+      setSecondsLeft(remaining)
+
+      if (remaining <= 0) {
         clearInterval(intervalRef.current)
         playSound()
         if (!isBreak) {
+          const now = Date.now()
+          localStorage.setItem('pomodoro_start', now)
+          localStorage.setItem('pomodoro_total', breakMinutes * 60)
+          localStorage.setItem('pomodoro_is_break', 'true')
           setIsBreak(true)
           setPhase('break')
         } else {
-          setIsBreak(false)
+          localStorage.removeItem('pomodoro_start')
           endSession(workMinutes * 60)
         }
       }
-    }, 1000)
+    }, 500)
+
     return () => clearInterval(intervalRef.current)
   }, [phase, isBreak])
+
+  useEffect(() => {
+    const start = localStorage.getItem('pomodoro_start')
+    const total = localStorage.getItem('pomodoro_total')
+    const subject = localStorage.getItem('pomodoro_subject')
+    const isBreakSaved = localStorage.getItem('pomodoro_is_break') === 'true'
+    if (!start || !total || !subject) return
+
+    const elapsed = Math.floor((Date.now() - Number(start)) / 1000)
+    if (elapsed >= Number(total)) {
+      localStorage.removeItem('pomodoro_start')
+      return
+    }
+    setSelectedSubject(JSON.parse(subject))
+    setIsBreak(isBreakSaved)
+    setPhase(isBreakSaved ? 'break' : 'studying')
+  }, [])
+
+  const startTimeRef = useRef(null)
+  const totalSecondsRef = useRef(0)
 
   function startStudying() {
     if (!selectedSubject) return
     setIsBreak(false)
     setSavedMsg(false)
     studiedSecondsRef.current = 0
+    const now = Date.now()
+    startTimeRef.current = now
+    totalSecondsRef.current = workMinutes * 60
+    localStorage.setItem('pomodoro_start', now)
+    localStorage.setItem('pomodoro_total', workMinutes * 60)
+    localStorage.setItem('pomodoro_break_total', breakMinutes * 60)
+    localStorage.setItem('pomodoro_subject', JSON.stringify(selectedSubject))
+    localStorage.setItem('pomodoro_is_break', 'false')
     setPhase('studying')
     setModalOpen(false)
-  }
-
-  function stopEarly() {
-    const elapsed = studiedSecondsRef.current
-    if (elapsed > 60) endSession(elapsed)
-    else { clearInterval(intervalRef.current); setPhase('idle') }
   }
 
   function getNextSubject() {
