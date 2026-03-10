@@ -16,7 +16,7 @@ const TYPE_COLOR = {
 
 const EXAM_TYPES = ['מבחן', 'מתכונת', 'בגרות']
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
-const HOUR_HEIGHT = 60 // px per hour
+const HOUR_HEIGHT = 40 // px per hour
 
 export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const today = new Date()
@@ -182,7 +182,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     const todayStr = toLocalDateStr(today)
 
     return (
-      <div style={{ display: 'flex', overflowY: 'auto', maxHeight: '70vh', position: 'relative' }}>
+      <div style={{ display: 'flex', overflowY: 'auto', maxHeight: '80vh', position: 'relative' }}>
         {/* עמודת שעות */}
         <div style={{ width: 48, flexShrink: 0, paddingTop: 32 }}>
           {HOURS.map(h => (
