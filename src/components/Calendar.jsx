@@ -26,7 +26,6 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
   const [events, setEvents] = useState([])
-  const [eventsLoaded, setEventsLoaded] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [addType, setAddType] = useState('אירוע')
   const [editItem, setEditItem] = useState(null)
@@ -41,11 +40,9 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
   const [formEndTime, setFormEndTime] = useState('')
 
   async function loadEvents() {
-    if (eventsLoaded) return
     const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id)
     if (error) return console.error('שגיאה בטעינת אירועים:', error.message)
     setEvents(data || [])
-    setEventsLoaded(true)
   }
 
   useEffect(() => { loadEvents() }, [])
