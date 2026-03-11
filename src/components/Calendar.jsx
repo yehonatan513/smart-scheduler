@@ -45,7 +45,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     setEvents(data || [])
   }
 
-  useEffect(() => { loadEvents() }, [])
+  useEffect(() => { loadEvents() }, [user.id])
 
   function getAllItemsForDate(dateStr) {
     const items = []

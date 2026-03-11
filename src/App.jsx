@@ -2,7 +2,7 @@ import { syncGoogleCalendar } from './components/GoogleCalendar'
 import AuthPage from './components/Auth'
 import WeeklySummary from './components/WeeklySummary'
 import Calendar from './components/Calendar'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabaseClient'
 import { calculateSchedule, getTodayHours } from './scheduler'
 import { toLocalDateStr } from './utils'
@@ -79,7 +79,7 @@ export default function App() {
     setLoading(false)
   }
 
-  const schedule = calculateSchedule(subjects, sessions, settings)
+  const schedule = useMemo(() => calculateSchedule(subjects, sessions, settings), [subjects, sessions, settings])
   const todayStr = toLocalDateStr()
   const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
   const dayName = DAYS[new Date().getDay()]

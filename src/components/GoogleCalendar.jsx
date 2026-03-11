@@ -51,7 +51,10 @@ function getOriginalDate(dateStr) {
     date.setFullYear(today.getFullYear())
     if (date < today) date.setFullYear(today.getFullYear())
   }
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function extractTime(dateTimeStr) {

@@ -38,7 +38,7 @@ export default function Stats({ sessions, subjects }) {
 
   // ימים ברצף עם לימוד
   let streak = 0
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 0; i <= 30; i++) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
     const dateStr = toLocalDateStr(d)

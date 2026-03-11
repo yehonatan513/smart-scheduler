@@ -9,6 +9,13 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
   const [permission, setPermission] = useState(() => {
     try { return Notification.permission } catch { return 'default' }
   })
+  const [maxSubjects, setMaxSubjects] = useState(settings?.max_subjects_per_day ?? 3)
+  const [minHours, setMinHours] = useState(settings?.min_hours_per_subject ?? 1)
+
+  useEffect(() => {
+    setMaxSubjects(settings?.max_subjects_per_day ?? 3)
+    setMinHours(settings?.min_hours_per_subject ?? 1)
+  }, [settings])
 
   useEffect(() => {
     if (!enabled) return
@@ -58,21 +65,21 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
           <label>מספר מקצועות מקסימלי ביום</label>
           <input
             type="number" min="1" max="6"
-            defaultValue={settings?.max_subjects_per_day ?? 3}
-            id="maxSubjects"
+            value={maxSubjects}
+            onChange={e => setMaxSubjects(Number(e.target.value))}
           />
         </div>
         <div className="form-group" style={{ marginBottom: 16 }}>
           <label>מינימום שעות למקצוע</label>
           <input
             type="number" min="0.5" max="4" step="0.5"
-            defaultValue={settings?.min_hours_per_subject ?? 1}
-            id="minHours"
+            value={minHours}
+            onChange={e => setMinHours(parseFloat(e.target.value))}
           />
         </div>
         <button className="btn btn-primary" onClick={async () => {
-          const max = parseInt(document.getElementById('maxSubjects').value)
-          const min = parseFloat(document.getElementById('minHours').value)
+          const max = maxSubjects
+          const min = minHours
           const existing = settings?.id
           let error
           if (existing) {

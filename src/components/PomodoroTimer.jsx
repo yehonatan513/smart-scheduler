@@ -18,7 +18,7 @@ function Confetti({ active }) {
       x: Math.random() * canvas.width,
       y: -10,
       r: Math.random() * 8 + 4,
-      color: ['#6c63ff','#ff6584','#43e97b','#ffa502','#00d2ff'][Math.floor(Math.random() * 5)],
+      color: ['#6c63ff', '#ff6584', '#43e97b', '#ffa502', '#00d2ff'][Math.floor(Math.random() * 5)],
       speed: Math.random() * 3 + 2,
       angle: Math.random() * 360,
       spin: Math.random() * 6 - 3,
@@ -64,7 +64,7 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
   const studiedSecondsRef = useRef(0)
 
   const todayStr = toLocalDateStr()
-  
+
   function stopEarly() {
     const elapsed = studiedSecondsRef.current
     localStorage.removeItem('pomodoro_start')
@@ -90,7 +90,7 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.5)
-    } catch {}
+    } catch { }
   }
 
   const endSession = useCallback(async (studiedSeconds) => {
@@ -105,9 +105,9 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
     let error
     if (existing) {
       const newHours = Math.round((existing.hours + hours) * 4) / 4
-      ;({ error } = await supabase.from('sessions').update({ completed: true, hours: newHours }).eq('id', existing.id))
+        ; ({ error } = await supabase.from('sessions').update({ completed: true, hours: newHours }).eq('id', existing.id))
     } else {
-      ;({ error } = await supabase.from('sessions').insert({ subject_id: selectedSubject.id, date: todayStr, hours, completed: true, user_id: user.id }))
+      ; ({ error } = await supabase.from('sessions').insert({ subject_id: selectedSubject.id, date: todayStr, hours, completed: true, user_id: user.id }))
     }
     setSaving(false)
     if (error) { alert('שגיאה בשמירה: ' + error.message); return }
@@ -137,21 +137,26 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
         clearInterval(intervalRef.current)
         playSound()
         if (!isBreak) {
+          const studiedSoFar = studiedSecondsRef.current
           const now = Date.now()
           localStorage.setItem('pomodoro_start', now)
           localStorage.setItem('pomodoro_total', breakMinutes * 60)
           localStorage.setItem('pomodoro_is_break', 'true')
+          studiedSecondsRef.current = studiedSoFar
           setIsBreak(true)
           setPhase('break')
         } else {
           localStorage.removeItem('pomodoro_start')
-          endSession(workMinutes * 60)
+          localStorage.removeItem('pomodoro_total')
+          localStorage.removeItem('pomodoro_subject')
+          localStorage.removeItem('pomodoro_is_break')
+          endSession(studiedSecondsRef.current)
         }
       }
     }, 500)
 
     return () => clearInterval(intervalRef.current)
-  }, [phase, isBreak])
+  }, [phase, isBreak, endSession, breakMinutes])
 
   useEffect(() => {
     const start = localStorage.getItem('pomodoro_start')
