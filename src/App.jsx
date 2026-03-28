@@ -1,4 +1,3 @@
-import { syncGoogleCalendar } from './components/GoogleCalendar'
 import AuthPage from './components/Auth'
 import WeeklySummary from './components/WeeklySummary'
 import Calendar from './components/Calendar'

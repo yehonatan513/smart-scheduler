@@ -60,7 +60,8 @@ export default function History({ sessions, subjects, onUpdate }) {
       {sortedDates.map(date => {
         const daySessions = byDate[date]
         const totalHours = daySessions.reduce((sum, s) => sum + s.hours, 0)
-        const d = new Date(date)
+        const [y, m, day] = date.split('-').map(Number)
+        const d = new Date(y, m - 1, day)
         const dateStr = d.toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
         return (

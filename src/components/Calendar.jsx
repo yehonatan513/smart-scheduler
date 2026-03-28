@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { toLocalDateStr } from '../utils'
 
@@ -83,7 +83,7 @@ export default function Calendar({ subjects, sessions, onUpdate, user }) {
     setFormRecurring(false)
     setFormHours('')
     setFormStartTime(hour !== null ? `${String(hour).padStart(2, '0')}:00` : '')
-    setFormEndTime(hour !== null ? `${String(hour + 1).padStart(2, '0')}:00` : '')
+    setFormEndTime(hour !== null ? `${String(Math.min(hour + 1, 23)).padStart(2, '0')}:${hour >= 23 ? '59' : '00'}` : '')
     setAddType('אירוע')
     setEditItem(null)
     setShowAddModal(true)

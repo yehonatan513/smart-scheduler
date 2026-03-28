@@ -174,7 +174,7 @@ export default function Subjects({ subjects, sessions, onUpdate, user }) {
             </div>
             <div className="subject-row-meta">
               <span>{new Date(s.exam_date).toLocaleDateString('he-IL')}</span>
-              <span>{daysLeft} ימים</span>
+              <span>{daysLeft > 0 ? `${daysLeft} ימים` : 'עבר'}</span>
               <span>{Math.round(done)}/{s.total_hours} שע'</span>
               <span style={{
                 padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,

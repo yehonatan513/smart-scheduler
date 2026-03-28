@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import GoogleCalendarSync from './GoogleCalendar'
 
@@ -9,6 +9,7 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
   const [permission, setPermission] = useState(() => {
     try { return Notification.permission } catch { return 'default' }
   })
+  const lastFiredRef = useRef('')
   const [maxSubjects, setMaxSubjects] = useState(settings?.max_subjects_per_day ?? 3)
   const [minHours, setMinHours] = useState(settings?.min_hours_per_subject ?? 1)
 
@@ -22,7 +23,8 @@ export default function Notifications({ darkMode, setDarkMode, user, settings, o
     const interval = setInterval(() => {
       const now = new Date()
       const current = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-      if (current === time && permission === 'granted') {
+      if (current === time && permission === 'granted' && lastFiredRef.current !== current) {
+        lastFiredRef.current = current
         new Notification('לוח זמנים חכם', {
           body: 'זמן ללמוד! פתח את האפליקציה לתוכנית היום שלך.',
           icon: '/favicon.ico'

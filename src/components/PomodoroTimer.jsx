@@ -59,6 +59,7 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
   const [confetti, setConfetti] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState(false)
+  const [lastSavedHours, setLastSavedHours] = useState(0)
   const intervalRef = useRef(null)
   const audioCtx = useRef(null)
   const studiedSecondsRef = useRef(0)
@@ -114,6 +115,7 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
     setConfetti(true)
     playSound()
     setTimeout(() => setConfetti(false), 3500)
+    setLastSavedHours(hours)
     setSavedMsg(true)
     setPhase('done')
     setModalOpen(true)
@@ -336,23 +338,26 @@ export default function PomodoroTimer({ user, subjects, sessions, onUpdate }) {
                 <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>כל הכבוד!</div>
                 {savedMsg && (
                   <div style={{ color: 'var(--accent3)', fontSize: 14, marginBottom: 20 }}>
-                    נשמרו {workMinutes} דקות ל{selectedSubject?.name}
+                    נשמרו {lastSavedHours} שעות ל{selectedSubject?.name}
                   </div>
                 )}
 
-                {getNextSubject() && (
-                  <div style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>המקצוע הבא המומלץ:</div>
-                    <div style={{ fontWeight: 700 }}>{getNextSubject()?.name}</div>
-                    <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={() => {
-                      setSelectedSubject(getNextSubject())
-                      setSavedMsg(false)
-                      setPhase('idle')
-                    }}>
-                      המשך ללמוד
-                    </button>
-                  </div>
-                )}
+                {(() => {
+                  const next = getNextSubject()
+                  return next && (
+                    <div style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>המקצוע הבא המומלץ:</div>
+                      <div style={{ fontWeight: 700 }}>{next.name}</div>
+                      <button className="btn btn-primary" style={{ marginTop: 10 }} onClick={() => {
+                        setSelectedSubject(next)
+                        setSavedMsg(false)
+                        setPhase('idle')
+                      }}>
+                        המשך ללמוד
+                      </button>
+                    </div>
+                  )
+                })()}
 
                 <button className="btn" onClick={() => { setPhase('idle'); setSavedMsg(false); setModalOpen(false) }}
                   style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', width: '100%' }}>

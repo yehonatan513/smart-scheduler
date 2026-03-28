@@ -21,10 +21,12 @@ export default function WeeklySummary({ sessions, subjects }) {
     totalPlanned += DAILY_PLANNED[i] || 0
   }
 
+  const startDateStr = toLocalDateStr(startOfWeek)
+  const endDateStr = toLocalDateStr(endOfWeek)
+
   // שעות בפועל השבוע
   const weekSessions = sessions.filter(s => {
-    const d = new Date(s.date)
-    return s.completed && d >= startOfWeek && d <= endOfWeek
+    return s.completed && s.date >= startDateStr && s.date <= endDateStr
   })
   const totalActual = weekSessions.reduce((sum, s) => sum + s.hours, 0)
 
